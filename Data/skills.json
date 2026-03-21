@@ -1,0 +1,32 @@
+[
+  {
+	"Id": "woodcutting",
+	"DisplayName": "Woodcutting",
+	"IconGlyph": "T",
+	"IconColorHex": "#57C257"
+  },
+  {
+	"Id": "mining",
+	"DisplayName": "Mining",
+	"IconGlyph": "M",
+	"IconColorHex": "#B8BDC9"
+  },
+  {
+	"Id": "foraging",
+	"DisplayName": "Foraging",
+	"IconGlyph": "B",
+	"IconColorHex": "#E14C78"
+  },
+  {
+	"Id": "exploring",
+	"DisplayName": "Exploring",
+	"IconGlyph": "E",
+	"IconColorHex": "#EDC95A"
+  },
+  {
+	"Id": "running",
+	"DisplayName": "Running",
+	"IconGlyph": "R",
+	"IconColorHex": "#74CCF5"
+  }
+]

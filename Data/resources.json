@@ -1,0 +1,26 @@
+[
+  {
+	"Id": "tree",
+	"DisplayName": "Tree",
+	"GatherButtonText": "Gather sticks",
+	"GatherVerb": "Gathering sticks",
+	"ItemId": "sticks",
+	"SkillId": "woodcutting"
+  },
+  {
+	"Id": "stone",
+	"DisplayName": "Stone",
+	"GatherButtonText": "Gather stones",
+	"GatherVerb": "Gathering stones",
+	"ItemId": "stones",
+	"SkillId": "mining"
+  },
+  {
+	"Id": "berries",
+	"DisplayName": "Berry Bush",
+	"GatherButtonText": "Harvest berries",
+	"GatherVerb": "Harvesting berries",
+	"ItemId": "berries",
+	"SkillId": "foraging"
+  }
+]

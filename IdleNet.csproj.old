@@ -1,0 +1,10 @@
+<Project Sdk="Godot.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>IdleNet</RootNamespace>
+    <AssemblyName>IdleNet</AssemblyName>
+  </PropertyGroup>
+</Project>
+

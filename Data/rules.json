@@ -1,0 +1,20 @@
+{
+  "WorldSeed": 1374775021,
+  "TileSize": 48,
+  "BaseStepDurationSeconds": 2.0,
+  "GatherDurationSeconds": 2.0,
+  "ExploreDurationSeconds": 30.0,
+  "ExploreBerryCost": 50,
+  "ExploreRequirementItemId": "berries",
+  "ExploreRequirementAmount": 50,
+  "BagCapacity": 10,
+  "StockpileCapacity": 100,
+  "RunningXpPerSecond": 1.0,
+  "RunningSpeedMultiplierPerLevel": 1.02,
+  "ExploringXpPerSecond": 1.0,
+  "ExploringSpeedMultiplierPerLevel": 1.02,
+  "SkillXpBaseRequirement": 5,
+  "SkillXpGrowthFactor": 1.12,
+  "StartingRevealRadius": 1,
+  "DefaultQueuedGatherAmount": 10
+}

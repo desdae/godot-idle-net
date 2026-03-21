@@ -1,0 +1,17 @@
+[
+  {
+	"Id": "sticks",
+	"DisplayName": "Sticks",
+	"SellPriceCoins": 1
+  },
+  {
+	"Id": "stones",
+	"DisplayName": "Stones",
+	"SellPriceCoins": 1
+  },
+  {
+	"Id": "berries",
+	"DisplayName": "Berries",
+	"SellPriceCoins": 1
+  }
+]
