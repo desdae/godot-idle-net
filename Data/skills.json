@@ -28,5 +28,11 @@
 	"DisplayName": "Running",
 	"IconGlyph": "R",
 	"IconColorHex": "#74CCF5"
+  },
+  {
+	"Id": "building",
+	"DisplayName": "Building",
+	"IconGlyph": "C",
+	"IconColorHex": "#D39C58"
   }
 ]

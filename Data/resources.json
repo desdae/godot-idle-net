@@ -5,7 +5,17 @@
 	"GatherButtonText": "Gather sticks",
 	"GatherVerb": "Gathering sticks",
 	"ItemId": "sticks",
-	"SkillId": "woodcutting"
+	"SkillId": "woodcutting",
+	"AlternateActions": [
+	  {
+		"Id": "cut_logs",
+		"ButtonText": "Cut logs",
+		"Verb": "Cutting logs",
+		"ItemId": "logs",
+		"SkillId": "woodcutting",
+		"MinSkillLevel": 10
+	  }
+	]
   },
   {
 	"Id": "stone",

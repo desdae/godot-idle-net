@@ -1,0 +1,167 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/TownUI/TownUI.cs" id="1_script"]
+[ext_resource type="PackedScene" path="res://UI/TownUI/SectionHeader.tscn" id="2_header"]
+[ext_resource type="PackedScene" path="res://UI/TownUI/BuildingCard.tscn" id="3_card"]
+[ext_resource type="PackedScene" path="res://UI/TownUI/CostRow.tscn" id="4_cost"]
+[ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="5_theme"]
+
+[node name="TownUI" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme = ExtResource("5_theme")
+script = ExtResource("1_script")
+BuildingCardScene = ExtResource("3_card")
+CostRowScene = ExtResource("4_cost")
+
+[node name="Frame" type="PanelContainer" parent="."]
+layout_mode = 1
+offset_left = 692.0
+offset_top = 8.0
+offset_right = 1260.0
+offset_bottom = 716.0
+
+[node name="OuterMargin" type="MarginContainer" parent="Frame"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="RootColumn" type="VBoxContainer" parent="Frame/OuterMargin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BodyScroll" type="ScrollContainer" parent="Frame/OuterMargin/RootColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="MainColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="HeaderPanel" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn"]
+custom_minimum_size = Vector2(0, 58)
+
+[node name="HeaderRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/HeaderPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/HeaderPanel/HeaderRow"]
+size_flags_horizontal = 3
+text = "Starter Town"
+
+[node name="GoldLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/HeaderPanel/HeaderRow"]
+text = "Gold 0"
+
+[node name="ResourcePanel" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn"]
+
+[node name="ResourceColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/ResourcePanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StockpileLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/ResourcePanel/ResourceColumn"]
+text = "Stockpile 0/100"
+
+[node name="StockpileBar" type="ProgressBar" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/ResourcePanel/ResourceColumn"]
+custom_minimum_size = Vector2(0, 24)
+show_percentage = false
+
+[node name="StockpileUpgradeLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/ResourcePanel/ResourceColumn"]
+autowrap_mode = 2
+text = "Upgrade summary"
+
+[node name="StockpileUpgradeButton" type="Button" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/ResourcePanel/ResourceColumn"]
+text = "Queue Stockpile Upgrade"
+
+[node name="ResourcesHeader" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/ResourcePanel/ResourceColumn" instance=ExtResource("2_header")]
+TitleText = "Stockyard"
+GemGlyph = "+"
+
+[node name="ResourceList" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/ResourcePanel/ResourceColumn"]
+theme_override_constants/separation = 6
+
+[node name="SellPanel" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn"]
+
+[node name="SellColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SellHeader" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel/SellColumn" instance=ExtResource("2_header")]
+TitleText = "Market Board"
+GemGlyph = "$"
+
+[node name="SellPromptLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel/SellColumn"]
+autowrap_mode = 2
+text = "Select a resource to sell"
+
+[node name="SellSummaryRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel/SellColumn"]
+
+[node name="SellSummarySpacer" type="Control" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel/SellColumn/SellSummaryRow"]
+size_flags_horizontal = 3
+
+[node name="SellValueLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel/SellColumn/SellSummaryRow"]
+text = "0%"
+
+[node name="SellSlider" type="HSlider" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel/SellColumn"]
+max_value = 100.0
+step = 5.0
+
+[node name="SellButton" type="Button" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel/SellColumn"]
+text = "Sell"
+
+[node name="BuildPanel" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn"]
+size_flags_vertical = 3
+
+[node name="BuildColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/BuildPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="BuildHeader" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/BuildPanel/BuildColumn" instance=ExtResource("2_header")]
+TitleText = "Build & Upgrade"
+GemGlyph = "@"
+
+[node name="FilterRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/BuildPanel/BuildColumn"]
+theme_override_constants/separation = 8
+
+[node name="AllButton" type="Button" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/BuildPanel/BuildColumn/FilterRow"]
+size_flags_horizontal = 3
+text = "All"
+
+[node name="AvailableButton" type="Button" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/BuildPanel/BuildColumn/FilterRow"]
+size_flags_horizontal = 3
+text = "Available"
+
+[node name="ExistingButton" type="Button" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/BuildPanel/BuildColumn/FilterRow"]
+size_flags_horizontal = 3
+text = "Existing"
+
+[node name="BuildingScroll" type="ScrollContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/BuildPanel/BuildColumn"]
+custom_minimum_size = Vector2(0, 220)
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="BuildingList" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/BuildPanel/BuildColumn/BuildingScroll"]
+theme_override_constants/separation = 12
+
+[node name="LedgerPanel" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn"]
+
+[node name="LedgerMargin" type="MarginContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/LedgerPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="LedgerLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/LedgerPanel/LedgerMargin"]
+autowrap_mode = 2
+text = "Ledger"
+
+[node name="CloseButton" type="Button" parent="Frame/OuterMargin/RootColumn"]
+text = "Close Ledger"

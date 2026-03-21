@@ -1,0 +1,71 @@
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Data/BuildingDefinition.cs" id="1_building"]
+[ext_resource type="Script" path="res://Scripts/Data/BuildingLevelDefinition.cs" id="2_level"]
+[ext_resource type="Script" path="res://Scripts/Data/BuildingCostDefinition.cs" id="3_cost"]
+
+[sub_resource type="Resource" id="1"]
+script = ExtResource("3_cost")
+ItemId = "sticks"
+Amount = 24
+
+[sub_resource type="Resource" id="2"]
+script = ExtResource("3_cost")
+ItemId = "stones"
+Amount = 10
+
+[sub_resource type="Resource" id="3"]
+script = ExtResource("2_level")
+Level = 1
+DurationSeconds = 40.0
+OutputSummary = "Improves timber processing."
+BenefitSummary = "A proper workshop for heavier lumber work."
+Costs = Array[Resource]([SubResource("1"), SubResource("2")])
+
+[sub_resource type="Resource" id="4"]
+script = ExtResource("3_cost")
+ItemId = "sticks"
+Amount = 36
+
+[sub_resource type="Resource" id="5"]
+script = ExtResource("3_cost")
+ItemId = "stones"
+Amount = 18
+
+[sub_resource type="Resource" id="6"]
+script = ExtResource("2_level")
+Level = 2
+DurationSeconds = 55.0
+OutputSummary = "Sharper saws and better storage."
+BenefitSummary = "Prepares the town for larger wood projects."
+Costs = Array[Resource]([SubResource("4"), SubResource("5")])
+
+[sub_resource type="Resource" id="7"]
+script = ExtResource("3_cost")
+ItemId = "sticks"
+Amount = 50
+
+[sub_resource type="Resource" id="8"]
+script = ExtResource("3_cost")
+ItemId = "stones"
+Amount = 30
+
+[sub_resource type="Resource" id="9"]
+script = ExtResource("2_level")
+Level = 3
+DurationSeconds = 75.0
+OutputSummary = "Masterwork lumber yard."
+BenefitSummary = "Raises the quality of all wood-focused upgrades."
+Costs = Array[Resource]([SubResource("7"), SubResource("8")])
+
+[resource]
+script = ExtResource("1_building")
+Id = "lumber_mill"
+DisplayName = "Lumber Mill"
+Description = "A sawmill and drying shed for turning raw timber into proper construction stock."
+IconGlyph = "L"
+AccentColorHex = "#78A26F"
+MaxLevel = 3
+RequiredSkillId = "woodcutting"
+RequiredSkillLevel = 2
+Levels = Array[Resource]([SubResource("3"), SubResource("6"), SubResource("9")])

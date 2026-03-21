@@ -1,0 +1,23 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/TownUI/CostRow.cs" id="1_script"]
+[ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="2_theme"]
+
+[node name="CostRow" type="PanelContainer"]
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="HBox" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="IconLabel" type="Label" parent="HBox"]
+custom_minimum_size = Vector2(18, 0)
+text = "*"
+
+[node name="NameLabel" type="Label" parent="HBox"]
+size_flags_horizontal = 3
+text = "Sticks"
+
+[node name="AmountLabel" type="Label" parent="HBox"]
+text = "10"

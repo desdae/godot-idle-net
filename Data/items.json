@@ -13,5 +13,10 @@
 	"Id": "berries",
 	"DisplayName": "Berries",
 	"SellPriceCoins": 1
+  },
+  {
+	"Id": "logs",
+	"DisplayName": "Logs",
+	"SellPriceCoins": 2
   }
 ]

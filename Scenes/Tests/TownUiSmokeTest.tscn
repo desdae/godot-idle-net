@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Tests/TownUiSmokeTest.cs" id="1_script"]
+[ext_resource type="PackedScene" path="res://Scenes/Main.tscn" id="2_main"]
+
+[node name="TownUiSmokeTest" type="Node"]
+script = ExtResource("1_script")
+MainScene = ExtResource("2_main")

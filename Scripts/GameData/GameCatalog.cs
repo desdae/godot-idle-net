@@ -14,9 +14,12 @@ public static class GameCatalog
 
 	public static IReadOnlyList<ResourceDefinition> Resources { get; }
 
+	public static IReadOnlyList<BuildingDefinition> Buildings { get; }
+
 	private static readonly Dictionary<string, SkillDefinition> SkillsById;
 	private static readonly Dictionary<string, ItemDefinition> ItemsById;
 	private static readonly Dictionary<string, ResourceDefinition> ResourcesById;
+	private static readonly Dictionary<string, BuildingDefinition> BuildingsById;
 
 	static GameCatalog()
 	{
@@ -24,10 +27,12 @@ public static class GameCatalog
 		Skills = LoadList<SkillDefinition>("res://Data/skills.json");
 		Items = LoadList<ItemDefinition>("res://Data/items.json");
 		Resources = LoadList<ResourceDefinition>("res://Data/resources.json");
+		Buildings = LoadResourcesFromDirectory<BuildingDefinition>("res://Data/Buildings");
 
 		SkillsById = CreateMap(Skills, skill => skill.Id);
 		ItemsById = CreateMap(Items, item => item.Id);
 		ResourcesById = CreateMap(Resources, resource => resource.Id);
+		BuildingsById = CreateMap(Buildings, building => building.Id);
 	}
 
 	public static SkillDefinition Woodcutting => GetSkill("woodcutting");
@@ -40,17 +45,23 @@ public static class GameCatalog
 
 	public static SkillDefinition Running => GetSkill("running");
 
+	public static SkillDefinition Building => GetSkill("building");
+
 	public static ItemDefinition Sticks => GetItem("sticks");
 
 	public static ItemDefinition Stones => GetItem("stones");
 
 	public static ItemDefinition Berries => GetItem("berries");
 
+	public static ItemDefinition Logs => GetItem("logs");
+
 	public static ResourceDefinition Tree => GetResource("tree");
 
 	public static ResourceDefinition Stone => GetResource("stone");
 
 	public static ResourceDefinition BerryBush => GetResource("berries");
+
+	public static BuildingDefinition GetBuilding(string id) => BuildingsById[id];
 
 	public static SkillDefinition GetSkill(string id) => SkillsById[id];
 
@@ -80,6 +91,40 @@ public static class GameCatalog
 		}
 
 		return value;
+	}
+
+	private static IReadOnlyList<T> LoadResourcesFromDirectory<T>(string directoryPath) where T : Resource
+	{
+		List<T> resources = new();
+		using DirAccess? dir = DirAccess.Open(directoryPath);
+		if (dir is null)
+		{
+			return resources;
+		}
+
+		dir.ListDirBegin();
+		while (true)
+		{
+			string fileName = dir.GetNext();
+			if (string.IsNullOrEmpty(fileName))
+			{
+				break;
+			}
+
+			if (dir.CurrentIsDir() || !fileName.EndsWith(".tres"))
+			{
+				continue;
+			}
+
+			T? resource = ResourceLoader.Load<T>($"{directoryPath}/{fileName}");
+			if (resource is not null)
+			{
+				resources.Add(resource);
+			}
+		}
+
+		dir.ListDirEnd();
+		return resources;
 	}
 
 	private static JsonSerializerOptions CreateJsonOptions()

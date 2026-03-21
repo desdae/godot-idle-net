@@ -1,0 +1,71 @@
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Data/BuildingDefinition.cs" id="1_building"]
+[ext_resource type="Script" path="res://Scripts/Data/BuildingLevelDefinition.cs" id="2_level"]
+[ext_resource type="Script" path="res://Scripts/Data/BuildingCostDefinition.cs" id="3_cost"]
+
+[sub_resource type="Resource" id="1"]
+script = ExtResource("3_cost")
+ItemId = "sticks"
+Amount = 12
+
+[sub_resource type="Resource" id="2"]
+script = ExtResource("3_cost")
+ItemId = "stones"
+Amount = 4
+
+[sub_resource type="Resource" id="3"]
+script = ExtResource("2_level")
+Level = 1
+DurationSeconds = 20.0
+OutputSummary = "Shelter for one villager."
+BenefitSummary = "A warm place for a new recruit to live."
+Costs = Array[Resource]([SubResource("1"), SubResource("2")])
+
+[sub_resource type="Resource" id="4"]
+script = ExtResource("3_cost")
+ItemId = "sticks"
+Amount = 20
+
+[sub_resource type="Resource" id="5"]
+script = ExtResource("3_cost")
+ItemId = "stones"
+Amount = 10
+
+[sub_resource type="Resource" id="6"]
+script = ExtResource("2_level")
+Level = 2
+DurationSeconds = 35.0
+OutputSummary = "Space for two villagers."
+BenefitSummary = "Improves comfort and town growth."
+Costs = Array[Resource]([SubResource("4"), SubResource("5")])
+
+[sub_resource type="Resource" id="7"]
+script = ExtResource("3_cost")
+ItemId = "sticks"
+Amount = 34
+
+[sub_resource type="Resource" id="8"]
+script = ExtResource("3_cost")
+ItemId = "stones"
+Amount = 20
+
+[sub_resource type="Resource" id="9"]
+script = ExtResource("2_level")
+Level = 3
+DurationSeconds = 50.0
+OutputSummary = "Sturdy family home."
+BenefitSummary = "Adds prestige and better housing."
+Costs = Array[Resource]([SubResource("7"), SubResource("8")])
+
+[resource]
+script = ExtResource("1_building")
+Id = "house"
+DisplayName = "House"
+Description = "A timber cottage for villagers, guests, and future recruits."
+IconGlyph = "H"
+AccentColorHex = "#D3A86C"
+MaxLevel = 3
+RequiredSkillId = "building"
+RequiredSkillLevel = 1
+Levels = Array[Resource]([SubResource("3"), SubResource("6"), SubResource("9")])

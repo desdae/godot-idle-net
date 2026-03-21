@@ -41,15 +41,9 @@ public partial class InfiniteWorld : Node2D
 	private static readonly Color QueuedExploreOverlay = new(0.44f, 0.78f, 0.97f, 0.28f);
 	private static readonly Color QueuedExploreOutline = new(0.62f, 0.88f, 1.00f, 0.55f);
 
-	private readonly TownState _townState = new(GameCatalog.Items, GameCatalog.Rules.StockpileCapacity);
+	private readonly TownState _townState = new(GameCatalog.Items, GameCatalog.Buildings, GameCatalog.Rules.StockpileCapacity);
 	private readonly CharacterState _characterState = new(GameCatalog.Items, GameCatalog.Skills, GameCatalog.Rules.BagCapacity);
 	private readonly HashSet<Vector2I> _exploredCells = new();
-	private readonly string[] _townBuildings =
-	{
-		"Town Hall Lv.1",
-		"Stockpile Lv.1",
-		"Campfire Lv.1",
-	};
 
 	private PlayerController? _player;
 	private Label? _coordsLabel;
@@ -59,11 +53,13 @@ public partial class InfiniteWorld : Node2D
 	private Label? _actionTitle;
 	private Label? _actionBody;
 	private Button? _actionButton;
+	private Button? _secondaryActionButton;
 	private Button? _cancelButton;
 	private Button? _queueToggleButton;
 	private PanelContainer? _queuePanel;
 	private Label? _queueSummaryLabel;
 	private VBoxContainer? _queueEntriesList;
+	private TownUI? _townUi;
 	private PanelContainer? _townPanel;
 	private Label? _townBody;
 	private Label? _townGoldLabel;
@@ -76,25 +72,33 @@ public partial class InfiniteWorld : Node2D
 	private readonly Dictionary<string, ProgressBar> _skillProgressBars = new();
 	private ProgressBar? _stockpileProgressBar;
 	private Label? _stockpileProgressLabel;
+	private Label? _stockpileUpgradeLabel;
+	private Button? _stockpileUpgradeButton;
 	private ItemList? _sellItemList;
 	private Label? _sellSelectionLabel;
 	private HSlider? _sellPercentSlider;
 	private Label? _sellPercentLabel;
 	private Button? _sellButton;
 	private string? _selectedSellItemId;
+	private int _selectedSellPercent;
+	private TownBuildingFilter _activeBuildingFilter = TownBuildingFilter.All;
 
 	private Vector2I _selectedCell = PlayerStartCell;
 	private Vector2I _actionCell = PlayerStartCell;
 	private string? _actionResourceId;
+	private string? _actionPrimaryResourceActionId;
+	private string? _actionSecondaryResourceActionId;
 	private WorkKind _actionWorkKind = WorkKind.Gather;
 	private GatherCommand? _activeGatherCommand;
 	private readonly List<GatherCommand> _queuedCommands = new();
 	private bool _activeExploreRequirementPaid;
+	private bool _activeTownUpgradePaid;
 	private bool _queuePanelDirty = true;
 	private double _queueSummaryRefreshSeconds;
 	private double _gatherProgressSeconds;
 	private double _runningXpAccumulator;
 	private double _exploringXpAccumulator;
+	private double _buildingXpAccumulator;
 	private WorkerPhase _workerPhase = WorkerPhase.Idle;
 
 	public override void _Ready()
@@ -102,12 +106,14 @@ public partial class InfiniteWorld : Node2D
 		_player = GetNode<PlayerController>("Player");
 		_coordsLabel = GetNode<Label>("Hud/CoordsLabel");
 		_hintLabel = GetNode<Label>("Hud/HintLabel");
+		_townUi = GetNode<TownUI>("Hud/TownUI");
 
 		_player.Initialize(PlayerStartCell, Rules.TileSize);
 		InitializeExploration();
 		_hintLabel.Text = $"Click the character, town, or a resource tile.\nMovement and gathering take 2 seconds. Bag: {_characterState.BagCapacity}. Stockpile: {_townState.StockpileCapacity}.";
 
 		CreateHudPanels();
+		ConnectTownUi();
 		UpdateQueuePanel();
 		UpdateTownPanel();
 		UpdateStatus("Starter town at (0, 0). Click a nearby resource to begin.");
@@ -121,7 +127,7 @@ public partial class InfiniteWorld : Node2D
 		ProcessGatherCommand(delta);
 		UpdatePlayerProgressBar();
 
-		if (_townPanel?.Visible == true)
+		if (_townUi?.Visible == true)
 		{
 			UpdateTownPanel();
 		}
@@ -258,6 +264,21 @@ public partial class InfiniteWorld : Node2D
 		}
 	}
 
+	public void OpenTownUi()
+	{
+		ShowTownPanel();
+	}
+
+	public void CloseTownUi()
+	{
+		HideTownPanel();
+	}
+
+	public bool IsTownUiOpen()
+	{
+		return _townUi?.Visible == true;
+	}
+
 	private void CreateHudPanels()
 	{
 		CanvasLayer hud = GetNode<CanvasLayer>("Hud");
@@ -296,14 +317,17 @@ public partial class InfiniteWorld : Node2D
 		_actionTitle = new Label { Text = "Resource" };
 		_actionBody = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
 		_actionButton = new Button { Text = "Add To Queue" };
+		_secondaryActionButton = new Button { Text = "Second Action", Visible = false };
 		_cancelButton = new Button { Text = "Clear Queue" };
 
 		_actionButton.Pressed += OnActionButtonPressed;
+		_secondaryActionButton.Pressed += OnSecondaryActionButtonPressed;
 		_cancelButton.Pressed += ClearGatherCommand;
 
 		actionBox.AddChild(_actionTitle);
 		actionBox.AddChild(_actionBody);
 		actionBox.AddChild(_actionButton);
+		actionBox.AddChild(_secondaryActionButton);
 		actionBox.AddChild(_cancelButton);
 		_actionPanel.AddChild(actionBox);
 		hud.AddChild(_actionPanel);
@@ -459,8 +483,21 @@ public partial class InfiniteWorld : Node2D
 		_stockpileProgressBar.AddThemeStyleboxOverride("background", CreateBarBackgroundStyle());
 		_stockpileProgressBar.AddThemeStyleboxOverride("fill", CreateBarFillStyle());
 
+		_stockpileUpgradeLabel = new Label
+		{
+			AutowrapMode = TextServer.AutowrapMode.WordSmart,
+			Text = "Stockpile upgrades are available in town.",
+		};
+		ApplyBodyLabelStyle(_stockpileUpgradeLabel);
+
+		_stockpileUpgradeButton = new Button { Text = "Queue Stockpile Upgrade" };
+		_stockpileUpgradeButton.Pressed += OnStockpileUpgradePressed;
+		ApplyTownButtonStyle(_stockpileUpgradeButton, true);
+
 		stockpileBox.AddChild(_stockpileProgressLabel);
 		stockpileBox.AddChild(_stockpileProgressBar);
+		stockpileBox.AddChild(_stockpileUpgradeLabel);
+		stockpileBox.AddChild(_stockpileUpgradeButton);
 		stockpilePanel.AddChild(stockpileBox);
 
 		PanelContainer sellPanel = new();
@@ -739,6 +776,23 @@ public partial class InfiniteWorld : Node2D
 		_skillProgressBars[skill.Id] = progressBar;
 	}
 
+	private void ConnectTownUi()
+	{
+		if (_townUi is null)
+		{
+			return;
+		}
+
+		_townUi.CloseRequested += HideTownPanel;
+		_townUi.StockpileUpgradeRequested += OnStockpileUpgradePressed;
+		_townUi.SellResourceSelected += OnTownSellResourceSelected;
+		_townUi.SellPercentChanged += OnTownSellPercentChanged;
+		_townUi.SellRequested += SellSelectedResources;
+		_townUi.BuildRequested += OnTownBuildRequested;
+		_townUi.UpgradeRequested += OnTownUpgradeRequested;
+		_townUi.FilterChanged += OnTownFilterChanged;
+	}
+
 	private static StyleBoxFlat CreatePanelStyle(Color backgroundColor, Color borderColor, int cornerRadius, int borderWidth, Color? shadowColor = null)
 	{
 		StyleBoxFlat style = new()
@@ -909,6 +963,69 @@ public partial class InfiniteWorld : Node2D
 		button.CustomMinimumSize = new Vector2(0.0f, secondary ? 40.0f : 46.0f);
 	}
 
+	private static ResourceActionDefinition GetPrimaryResourceAction(ResourceDefinition resource)
+	{
+		return new ResourceActionDefinition
+		{
+			Id = "default",
+			ButtonText = resource.GatherButtonText,
+			Verb = resource.GatherVerb,
+			ItemId = resource.ItemId,
+			SkillId = resource.SkillId,
+			MinSkillLevel = 1,
+		};
+	}
+
+	private static List<ResourceActionDefinition> GetResourceActions(ResourceDefinition resource)
+	{
+		List<ResourceActionDefinition> actions = new() { GetPrimaryResourceAction(resource) };
+		actions.AddRange(resource.AlternateActions);
+		return actions;
+	}
+
+	private static ResourceActionDefinition GetResourceAction(ResourceDefinition resource, string? actionId)
+	{
+		foreach (ResourceActionDefinition action in GetResourceActions(resource))
+		{
+			if (action.Id == (actionId ?? "default"))
+			{
+				return action;
+			}
+		}
+
+		return GetPrimaryResourceAction(resource);
+	}
+
+	private bool IsResourceActionUnlocked(ResourceActionDefinition action)
+	{
+		return _characterState.GetSkillLevel(action.SkillId) >= action.MinSkillLevel;
+	}
+
+	private static int RoundToNearest(int value, int step)
+	{
+		return (int)System.Math.Round(value / (double)step, System.MidpointRounding.AwayFromZero) * step;
+	}
+
+	private int GetStockpileUpgradeSticksCost()
+	{
+		return Rules.StockpileUpgradeBaseSticksCost;
+	}
+
+	private int GetStockpileUpgradeStonesCost()
+	{
+		return Rules.StockpileUpgradeBaseStonesCost;
+	}
+
+	private double GetStockpileUpgradeDurationSeconds()
+	{
+		return Rules.StockpileUpgradeDurationSeconds;
+	}
+
+	private int GetNextStockpileCapacity()
+	{
+		return _townState.PreviewNextStockpileCapacity(Rules.StockpileUpgradeCapacityMultiplier, Rules.StockpileUpgradeCapacityRoundTo);
+	}
+
 	private void ProcessGatherCommand(double delta)
 	{
 		if (_player is null)
@@ -934,7 +1051,20 @@ public partial class InfiniteWorld : Node2D
 			return;
 		}
 
+		if (_activeGatherCommand.Kind == WorkKind.TownUpgrade)
+		{
+			ProcessTownUpgradeCommand(delta);
+			return;
+		}
+
+		if (_activeGatherCommand.Kind == WorkKind.BuildingConstruction)
+		{
+			ProcessBuildingConstructionCommand(delta);
+			return;
+		}
+
 		ResourceDefinition resource = GameCatalog.GetResource(_activeGatherCommand.ResourceId!);
+		ResourceActionDefinition action = GetResourceAction(resource, _activeGatherCommand.ResourceActionId);
 
 		if (_player.CurrentCell == TownCell && _characterState.GetBagCount() > 0 && _townState.HasStorageSpace())
 		{
@@ -994,7 +1124,7 @@ public partial class InfiniteWorld : Node2D
 		_workerPhase = WorkerPhase.Gathering;
 		_gatherProgressSeconds += delta;
 		double secondsLeft = Mathf.Max(0.0, (float)(Rules.GatherDurationSeconds - _gatherProgressSeconds));
-		UpdateStatus($"{resource.GatherVerb} at {_activeGatherCommand.Cell.X}, {_activeGatherCommand.Cell.Y}... {secondsLeft:0.0}s  Bag: {_characterState.GetBagCount()}/{_characterState.BagCapacity}");
+		UpdateStatus($"{action.Verb} at {_activeGatherCommand.Cell.X}, {_activeGatherCommand.Cell.Y}... {secondsLeft:0.0}s  Bag: {_characterState.GetBagCount()}/{_characterState.BagCapacity}");
 
 		if (_gatherProgressSeconds < Rules.GatherDurationSeconds)
 		{
@@ -1002,7 +1132,7 @@ public partial class InfiniteWorld : Node2D
 		}
 
 		_gatherProgressSeconds -= Rules.GatherDurationSeconds;
-		CompleteGatherCycle(resource);
+		CompleteGatherCycle(resource, action);
 	}
 
 	private void ProcessExploreCommand(double delta)
@@ -1069,6 +1199,133 @@ public partial class InfiniteWorld : Node2D
 		CompleteExploreCycle(_activeGatherCommand.Cell);
 	}
 
+	private void ProcessTownUpgradeCommand(double delta)
+	{
+		if (_player is null || _activeGatherCommand is null)
+		{
+			return;
+		}
+
+		if (_player.IsMoving)
+		{
+			_workerPhase = WorkerPhase.TravelingToResource;
+			UpdateStatus("Moving to town to upgrade the stockpile...");
+			return;
+		}
+
+		if (_player.CurrentCell != TownCell)
+		{
+			Vector2I nextCell = GetNextStep(_player.CurrentCell, TownCell);
+			_player.BeginStep(nextCell, GetCurrentStepDurationSeconds());
+			_workerPhase = WorkerPhase.TravelingToResource;
+			UpdateStatus("Walking to town to upgrade the stockpile...");
+			return;
+		}
+
+		if (!_activeTownUpgradePaid)
+		{
+			int sticksCost = GetStockpileUpgradeSticksCost();
+			int stonesCost = GetStockpileUpgradeStonesCost();
+			bool hasSticks = _townState.GetStoredCount(GameCatalog.Sticks.Id) >= sticksCost;
+			bool hasStones = _townState.GetStoredCount(GameCatalog.Stones.Id) >= stonesCost;
+			if (!hasSticks || !hasStones)
+			{
+				if (!hasSticks)
+				{
+					CompleteCurrentCommand($"Stockpile upgrade stopped. Town needs {sticksCost} sticks.");
+				}
+				else
+				{
+					CompleteCurrentCommand($"Stockpile upgrade stopped. Town needs {stonesCost} stones.");
+				}
+				UpdateTownPanel();
+				return;
+			}
+
+			_townState.TryConsumeStored(GameCatalog.Sticks.Id, sticksCost);
+			_townState.TryConsumeStored(GameCatalog.Stones.Id, stonesCost);
+			_activeTownUpgradePaid = true;
+			UpdateTownPanel();
+		}
+
+		_workerPhase = WorkerPhase.Gathering;
+		UpdateBuildingSkill(delta);
+		_gatherProgressSeconds += delta;
+		double duration = GetStockpileUpgradeDurationSeconds();
+		double secondsLeft = Mathf.Max(0.0, (float)(duration - _gatherProgressSeconds));
+		UpdateStatus($"Upgrading stockpile in town... {secondsLeft:0.0}s");
+
+		if (_gatherProgressSeconds < duration)
+		{
+			return;
+		}
+
+		int nextCapacity = _townState.UpgradeStockpile(Rules.StockpileUpgradeCapacityMultiplier, Rules.StockpileUpgradeCapacityRoundTo);
+		_gatherProgressSeconds -= duration;
+		UpdateTownPanel();
+		CompleteCurrentCommand($"Stockpile upgraded to Lv.{_townState.StockpileLevel}. Capacity is now {nextCapacity}.");
+	}
+
+	private void ProcessBuildingConstructionCommand(double delta)
+	{
+		if (_player is null || _activeGatherCommand is null || string.IsNullOrEmpty(_activeGatherCommand.BuildingId))
+		{
+			return;
+		}
+
+		BuildingDefinition definition = GameCatalog.GetBuilding(_activeGatherCommand.BuildingId);
+		BuildingState state = _townState.GetBuildingState(definition.Id);
+		BuildingLevelDefinition level = definition.GetLevelDefinition(_activeGatherCommand.TargetLevel);
+
+		if (_player.IsMoving)
+		{
+			_workerPhase = WorkerPhase.TravelingToResource;
+			UpdateStatus($"Moving to town to work on {definition.DisplayName}...");
+			return;
+		}
+
+		if (_player.CurrentCell != TownCell)
+		{
+			Vector2I nextCell = GetNextStep(_player.CurrentCell, TownCell);
+			_player.BeginStep(nextCell, GetCurrentStepDurationSeconds());
+			_workerPhase = WorkerPhase.TravelingToResource;
+			UpdateStatus($"Walking to town to work on {definition.DisplayName}...");
+			return;
+		}
+
+		if (!state.IsUnderConstruction)
+		{
+			if (!_townState.TryConsumeCosts(level.Costs))
+			{
+				CompleteCurrentCommand($"{definition.DisplayName} cannot start. The town is missing required materials.");
+				UpdateTownPanel();
+				return;
+			}
+
+			state.BeginConstruction(_activeGatherCommand.TargetLevel, level.DurationSeconds);
+			UpdateTownPanel();
+		}
+
+		_workerPhase = WorkerPhase.Gathering;
+		UpdateBuildingSkill(delta);
+		state.Advance(delta);
+		_gatherProgressSeconds = state.ProgressSeconds;
+
+		double secondsLeft = Mathf.Max(0.0, (float)(state.TotalSeconds - state.ProgressSeconds));
+		UpdateStatus($"Constructing {definition.DisplayName}... {secondsLeft:0.0}s");
+		UpdateTownPanel();
+
+		if (state.ProgressSeconds < state.TotalSeconds)
+		{
+			return;
+		}
+
+		state.CompleteConstruction();
+		_gatherProgressSeconds = 0.0;
+		UpdateTownPanel();
+		CompleteCurrentCommand($"{definition.DisplayName} reached level {state.CurrentLevel}.");
+	}
+
 	private void ProcessReturnToTown()
 	{
 		if (_player is null)
@@ -1106,7 +1363,8 @@ public partial class InfiniteWorld : Node2D
 			_characterState.GetBagCount() == 0)
 		{
 			ResourceDefinition finishedResource = GameCatalog.GetResource(_activeGatherCommand.ResourceId!);
-			CompleteCurrentCommand($"{finishedResource.GatherVerb} queue complete at ({_activeGatherCommand.Cell.X}, {_activeGatherCommand.Cell.Y}).");
+			ResourceActionDefinition finishedAction = GetResourceAction(finishedResource, _activeGatherCommand.ResourceActionId);
+			CompleteCurrentCommand($"{finishedAction.Verb} queue complete at ({_activeGatherCommand.Cell.X}, {_activeGatherCommand.Cell.Y}).");
 			return;
 		}
 
@@ -1128,6 +1386,8 @@ public partial class InfiniteWorld : Node2D
 			return;
 		}
 
+		ResourceActionDefinition action = GetResourceAction(resource, _activeGatherCommand.ResourceActionId);
+
 		if (_player.IsMoving)
 		{
 			UpdateStatus($"Returning to resource at ({_activeGatherCommand.Cell.X}, {_activeGatherCommand.Cell.Y})...");
@@ -1144,11 +1404,12 @@ public partial class InfiniteWorld : Node2D
 
 		_workerPhase = WorkerPhase.Gathering;
 		_gatherProgressSeconds = 0.0;
-		UpdateStatus($"Back at resource. Resuming {resource.GatherVerb.ToLowerInvariant()}.");
+		UpdateStatus($"Back at resource. Resuming {action.Verb.ToLowerInvariant()}.");
 	}
 
 	private void FinishGatherCommandIfReady(ResourceDefinition resource)
 	{
+		ResourceActionDefinition action = GetResourceAction(resource, _activeGatherCommand?.ResourceActionId);
 		if (_characterState.GetBagCount() > 0)
 		{
 			_workerPhase = WorkerPhase.ReturningToTown;
@@ -1157,13 +1418,13 @@ public partial class InfiniteWorld : Node2D
 			return;
 		}
 
-		CompleteCurrentCommand($"{resource.GatherVerb} queue complete at ({_activeGatherCommand!.Cell.X}, {_activeGatherCommand.Cell.Y}).");
+		CompleteCurrentCommand($"{action.Verb} queue complete at ({_activeGatherCommand!.Cell.X}, {_activeGatherCommand.Cell.Y}).");
 	}
 
-	private void CompleteGatherCycle(ResourceDefinition resource)
+	private void CompleteGatherCycle(ResourceDefinition resource, ResourceActionDefinition action)
 	{
-		SkillDefinition skill = GameCatalog.GetSkill(resource.SkillId);
-		ItemDefinition item = GameCatalog.GetItem(resource.ItemId);
+		SkillDefinition skill = GameCatalog.GetSkill(action.SkillId);
+		ItemDefinition item = GameCatalog.GetItem(action.ItemId);
 		int previousLevel = _characterState.GetSkillLevel(skill.Id);
 
 		_characterState.AddToBag(item.Id);
@@ -1175,7 +1436,7 @@ public partial class InfiniteWorld : Node2D
 		}
 
 		int newLevel = _characterState.GetSkillLevel(skill.Id);
-		string result = $"{resource.GatherVerb} complete. +1 {item.DisplayName.ToLowerInvariant()}. Bag: {_characterState.GetBagCount()}/{_characterState.BagCapacity}.";
+		string result = $"{action.Verb} complete. +1 {item.DisplayName.ToLowerInvariant()}. Bag: {_characterState.GetBagCount()}/{_characterState.BagCapacity}.";
 		if (newLevel > previousLevel)
 		{
 			result += $" {skill.DisplayName} reached level {newLevel}.";
@@ -1220,7 +1481,13 @@ public partial class InfiniteWorld : Node2D
 			return;
 		}
 
-		double duration = _activeGatherCommand?.Kind == WorkKind.Explore ? GetCurrentExploreDurationSeconds() : Rules.GatherDurationSeconds;
+		double duration = _activeGatherCommand?.Kind switch
+		{
+			WorkKind.Explore => GetCurrentExploreDurationSeconds(),
+			WorkKind.TownUpgrade => GetStockpileUpgradeDurationSeconds(),
+			WorkKind.BuildingConstruction when _activeGatherCommand.BuildingId is not null => _townState.GetBuildingState(_activeGatherCommand.BuildingId).TotalSeconds,
+			_ => Rules.GatherDurationSeconds,
+		};
 		float ratio = (float)(_gatherProgressSeconds / duration);
 		_player.SetProgressBar(true, ratio);
 	}
@@ -1244,6 +1511,7 @@ public partial class InfiniteWorld : Node2D
 		_activeGatherCommand = command;
 		_gatherProgressSeconds = 0.0;
 		_activeExploreRequirementPaid = false;
+		_activeTownUpgradePaid = false;
 		_workerPhase = command.Kind == WorkKind.Gather && _characterState.IsBagFull()
 			? WorkerPhase.ReturningToTown
 			: WorkerPhase.TravelingToResource;
@@ -1253,9 +1521,11 @@ public partial class InfiniteWorld : Node2D
 
 	private void CompleteCurrentCommand(string completedStatus)
 	{
+		CancelActiveConstructionVisualState();
 		_activeGatherCommand = null;
 		_gatherProgressSeconds = 0.0;
 		_activeExploreRequirementPaid = false;
+		_activeTownUpgradePaid = false;
 		_workerPhase = WorkerPhase.Idle;
 		_queuePanelDirty = true;
 		UpdateQueuePanel();
@@ -1366,17 +1636,19 @@ public partial class InfiniteWorld : Node2D
 		TryStartNextQueuedCommand();
 	}
 
-	private GatherCommand CreateGatherCommand(string resourceId, Vector2I cell, int amount)
+	private GatherCommand CreateGatherCommand(string resourceId, string actionId, Vector2I cell, int amount)
 	{
 		ResourceDefinition resource = GameCatalog.GetResource(resourceId);
+		ResourceActionDefinition action = GetResourceAction(resource, actionId);
 		return new GatherCommand
 		{
 			Cell = cell,
 			Kind = WorkKind.Gather,
 			ResourceId = resourceId,
+			ResourceActionId = action.Id,
 			TotalAmount = amount,
 			RemainingAmount = amount,
-			Description = $"{resource.DisplayName} x{amount} at ({cell.X}, {cell.Y})",
+			Description = $"{resource.DisplayName} {action.ButtonText.ToLowerInvariant()} x{amount} at ({cell.X}, {cell.Y})",
 		};
 	}
 
@@ -1399,28 +1671,26 @@ public partial class InfiniteWorld : Node2D
 			return null;
 		}
 
-		ResourceDefinition? sourceResource = null;
 		foreach (ResourceDefinition resource in GameCatalog.Resources)
 		{
-			if (resource.ItemId == itemId)
+			foreach (ResourceActionDefinition action in GetResourceActions(resource))
 			{
-				sourceResource = resource;
-				break;
+				if (action.ItemId != itemId || !IsResourceActionUnlocked(action))
+				{
+					continue;
+				}
+
+				Vector2I? sourceCell = FindNearestExploredResourceCell(resource.Id);
+				if (sourceCell is null)
+				{
+					continue;
+				}
+
+				return CreateGatherCommand(resource.Id, action.Id, sourceCell.Value, amount);
 			}
 		}
 
-		if (sourceResource is null)
-		{
-			return null;
-		}
-
-		Vector2I? sourceCell = FindNearestExploredResourceCell(sourceResource.Id);
-		if (sourceCell is null)
-		{
-			return null;
-		}
-
-		return CreateGatherCommand(sourceResource.Id, sourceCell.Value, amount);
+		return null;
 	}
 
 	private Vector2I? FindNearestExploredResourceCell(string resourceId)
@@ -1470,7 +1740,14 @@ public partial class InfiniteWorld : Node2D
 
 		if (_activeGatherCommand is not null)
 		{
-			projectedCount = ApplyProjectedTownDelta(projectedCount, itemId, _activeGatherCommand, _activeExploreRequirementPaid);
+			bool activeCostAlreadyPaid = _activeGatherCommand.Kind switch
+			{
+				WorkKind.Explore => _activeExploreRequirementPaid,
+				WorkKind.TownUpgrade => _activeTownUpgradePaid,
+				WorkKind.BuildingConstruction when _activeGatherCommand.BuildingId is not null => _townState.GetBuildingState(_activeGatherCommand.BuildingId).IsUnderConstruction,
+				_ => false,
+			};
+			projectedCount = ApplyProjectedTownDelta(projectedCount, itemId, _activeGatherCommand, activeCostAlreadyPaid);
 		}
 
 		foreach (GatherCommand command in _queuedCommands)
@@ -1486,7 +1763,8 @@ public partial class InfiniteWorld : Node2D
 		if (command.Kind == WorkKind.Gather && command.ResourceId is not null)
 		{
 			ResourceDefinition resource = GameCatalog.GetResource(command.ResourceId);
-			if (resource.ItemId == itemId)
+			ResourceActionDefinition action = GetResourceAction(resource, command.ResourceActionId);
+			if (action.ItemId == itemId)
 			{
 				return currentAmount + System.Math.Max(0, command.RemainingAmount);
 			}
@@ -1495,6 +1773,31 @@ public partial class InfiniteWorld : Node2D
 		if (command.Kind == WorkKind.Explore && Rules.ExploreRequirementItemId == itemId && !requirementAlreadyPaid)
 		{
 			return currentAmount - Rules.ExploreRequirementAmount;
+		}
+
+		if (command.Kind == WorkKind.TownUpgrade && !requirementAlreadyPaid)
+		{
+			if (itemId == GameCatalog.Sticks.Id)
+			{
+				return currentAmount - GetStockpileUpgradeSticksCost();
+			}
+
+			if (itemId == GameCatalog.Stones.Id)
+			{
+				return currentAmount - GetStockpileUpgradeStonesCost();
+			}
+		}
+
+		if (command.Kind == WorkKind.BuildingConstruction && !requirementAlreadyPaid && !string.IsNullOrEmpty(command.BuildingId))
+		{
+			BuildingLevelDefinition level = GameCatalog.GetBuilding(command.BuildingId).GetLevelDefinition(command.TargetLevel);
+			foreach (BuildingCostDefinition cost in level.Costs)
+			{
+				if (cost.ItemId == itemId)
+				{
+					return currentAmount - cost.Amount;
+				}
+			}
 		}
 
 		return currentAmount;
@@ -1654,6 +1957,11 @@ public partial class InfiniteWorld : Node2D
 
 	private string FormatCommandEntry(GatherCommand command)
 	{
+		if (command.Kind == WorkKind.BuildingConstruction)
+		{
+			return command.Description;
+		}
+
 		if (command.Kind != WorkKind.Gather || command.TotalAmount <= 0)
 		{
 			return command.Description;
@@ -1714,6 +2022,7 @@ public partial class InfiniteWorld : Node2D
 		if (command.Kind == WorkKind.Gather && command.ResourceId is not null)
 		{
 			ResourceDefinition resource = GameCatalog.GetResource(command.ResourceId);
+			ResourceActionDefinition action = GetResourceAction(resource, command.ResourceActionId);
 			int remainingAmount = System.Math.Max(0, command.RemainingAmount);
 			bool appliedActiveGatherProgress = false;
 
@@ -1743,7 +2052,7 @@ public partial class InfiniteWorld : Node2D
 
 				totalSeconds += gatherSeconds;
 				simulatedBagTotal += gatheredThisTrip;
-				if (resource.ItemId == Rules.ExploreRequirementItemId)
+				if (action.ItemId == Rules.ExploreRequirementItemId)
 				{
 					simulatedBagRequirementCount += gatheredThisTrip;
 				}
@@ -1771,6 +2080,36 @@ public partial class InfiniteWorld : Node2D
 			totalSeconds += exploreSeconds;
 			simulatedTownRequirementCount = System.Math.Max(0, simulatedTownRequirementCount - Rules.ExploreRequirementAmount);
 		}
+		else if (command.Kind == WorkKind.TownUpgrade)
+		{
+			totalSeconds += GetTravelSeconds(simulatedCell, TownCell);
+			simulatedCell = TownCell;
+
+			double upgradeSeconds = GetStockpileUpgradeDurationSeconds();
+			if (isActiveCommand && _workerPhase == WorkerPhase.Gathering)
+			{
+				upgradeSeconds = System.Math.Max(0.0, upgradeSeconds - _gatherProgressSeconds);
+			}
+
+			totalSeconds += upgradeSeconds;
+			simulatedTownRequirementCount = System.Math.Max(0, simulatedTownRequirementCount);
+		}
+		else if (command.Kind == WorkKind.BuildingConstruction && !string.IsNullOrEmpty(command.BuildingId))
+		{
+			BuildingDefinition definition = GameCatalog.GetBuilding(command.BuildingId);
+			BuildingLevelDefinition level = definition.GetLevelDefinition(command.TargetLevel);
+
+			totalSeconds += GetTravelSeconds(simulatedCell, TownCell);
+			simulatedCell = TownCell;
+
+			double buildSeconds = level.DurationSeconds;
+			if (isActiveCommand && _workerPhase == WorkerPhase.Gathering)
+			{
+				buildSeconds = System.Math.Max(0.0, buildSeconds - _gatherProgressSeconds);
+			}
+
+			totalSeconds += buildSeconds;
+		}
 
 		return totalSeconds;
 	}
@@ -1790,7 +2129,7 @@ public partial class InfiniteWorld : Node2D
 
 	private void ShowActionPanel(Vector2I cell, ResourceDefinition resource)
 	{
-		if (_actionPanel is null || _actionTitle is null || _actionBody is null || _actionButton is null)
+		if (_actionPanel is null || _actionTitle is null || _actionBody is null || _actionButton is null || _secondaryActionButton is null)
 		{
 			return;
 		}
@@ -1798,17 +2137,46 @@ public partial class InfiniteWorld : Node2D
 		_actionCell = cell;
 		_actionResourceId = resource.Id;
 		_actionWorkKind = WorkKind.Gather;
-
-		SkillDefinition skill = GameCatalog.GetSkill(resource.SkillId);
+		List<ResourceActionDefinition> actions = GetResourceActions(resource);
+		ResourceActionDefinition primaryAction = actions[0];
+		SkillDefinition skill = GameCatalog.GetSkill(primaryAction.SkillId);
 		_actionTitle.Text = $"{resource.DisplayName} at ({cell.X}, {cell.Y})";
-		_actionBody.Text =
-			$"{resource.GatherVerb} here to gain {skill.DisplayName}.\n" +
-			$"Queue batch: {Rules.DefaultQueuedGatherAmount}\n" +
-			$"Move time: {GetCurrentStepDurationSeconds():0.00}s per tile\n" +
-			$"Gather time: {Rules.GatherDurationSeconds:0.0}s each\n" +
-			$"Bag: {_characterState.GetBagCount()}/{_characterState.BagCapacity}\n" +
-			$"Current {skill.DisplayName} level: {_characterState.GetSkillLevel(skill.Id)}";
-		_actionButton.Text = $"Queue {Rules.DefaultQueuedGatherAmount}";
+		StringBuilder bodyBuilder = new();
+		bodyBuilder.AppendLine($"{primaryAction.Verb} here to gain {skill.DisplayName}.");
+		bodyBuilder.AppendLine($"Queue batch: {Rules.DefaultQueuedGatherAmount}");
+		bodyBuilder.AppendLine($"Move time: {GetCurrentStepDurationSeconds():0.00}s per tile");
+		bodyBuilder.AppendLine($"Gather time: {Rules.GatherDurationSeconds:0.0}s each");
+		bodyBuilder.AppendLine($"Bag: {_characterState.GetBagCount()}/{_characterState.BagCapacity}");
+		bodyBuilder.AppendLine($"Current {skill.DisplayName} level: {_characterState.GetSkillLevel(skill.Id)}");
+
+		if (actions.Count > 1)
+		{
+			ResourceActionDefinition secondaryAction = actions[1];
+			SkillDefinition secondarySkill = GameCatalog.GetSkill(secondaryAction.SkillId);
+			ItemDefinition secondaryItem = GameCatalog.GetItem(secondaryAction.ItemId);
+			bool unlocked = IsResourceActionUnlocked(secondaryAction);
+			bodyBuilder.AppendLine();
+			bodyBuilder.AppendLine(unlocked
+				? $"{secondaryAction.ButtonText} unlocks {secondaryItem.DisplayName} and uses {secondarySkill.DisplayName}."
+				: $"{secondaryAction.ButtonText} unlocks at {secondarySkill.DisplayName} Lv.{secondaryAction.MinSkillLevel}.");
+			_actionSecondaryResourceActionId = secondaryAction.Id;
+			_secondaryActionButton.Text = unlocked
+				? $"{secondaryAction.ButtonText} x{Rules.DefaultQueuedGatherAmount}"
+				: $"{secondaryAction.ButtonText} (Lv.{secondaryAction.MinSkillLevel})";
+			_secondaryActionButton.Disabled = !unlocked;
+			_secondaryActionButton.Visible = true;
+		}
+		else
+		{
+			_actionSecondaryResourceActionId = null;
+			_secondaryActionButton.Visible = false;
+			_secondaryActionButton.Disabled = true;
+		}
+
+		_actionBody.Text = bodyBuilder.ToString().TrimEnd();
+		_actionPrimaryResourceActionId = primaryAction.Id;
+		_actionButton.Text = $"{primaryAction.ButtonText} x{Rules.DefaultQueuedGatherAmount}";
+		_actionButton.Disabled = false;
 		_actionPanel.Visible = true;
 
 		UpdateStatus($"Resource selected at ({cell.X}, {cell.Y}).");
@@ -1816,13 +2184,15 @@ public partial class InfiniteWorld : Node2D
 
 	private void ShowExploreActionPanel(Vector2I cell)
 	{
-		if (_actionPanel is null || _actionTitle is null || _actionBody is null || _actionButton is null)
+		if (_actionPanel is null || _actionTitle is null || _actionBody is null || _actionButton is null || _secondaryActionButton is null)
 		{
 			return;
 		}
 
 		_actionCell = cell;
 		_actionResourceId = null;
+		_actionPrimaryResourceActionId = null;
+		_actionSecondaryResourceActionId = null;
 		_actionWorkKind = WorkKind.Explore;
 
 		ItemDefinition requirementItem = GameCatalog.GetItem(Rules.ExploreRequirementItemId);
@@ -1841,6 +2211,8 @@ public partial class InfiniteWorld : Node2D
 			$"Auto-queued if missing: {missingRequirement}\n" +
 			$"Exploring level: {exploringLevel}  XP rate: {Rules.ExploringXpPerSecond:0}/s";
 		_actionButton.Text = "Queue Explore";
+		_actionButton.Disabled = false;
+		_secondaryActionButton.Visible = false;
 		_actionPanel.Visible = true;
 
 		UpdateStatus($"Frontier tile selected at ({cell.X}, {cell.Y}).");
@@ -1848,6 +2220,8 @@ public partial class InfiniteWorld : Node2D
 
 	private void HideActionPanel()
 	{
+		_actionPrimaryResourceActionId = null;
+		_actionSecondaryResourceActionId = null;
 		if (_actionPanel is not null)
 		{
 			_actionPanel.Visible = false;
@@ -1857,17 +2231,17 @@ public partial class InfiniteWorld : Node2D
 	private void ShowTownPanel()
 	{
 		UpdateTownPanel();
-		if (_townPanel is not null)
+		if (_townUi is not null)
 		{
-			_townPanel.Visible = true;
+			_townUi.Visible = true;
 		}
 	}
 
 	private void HideTownPanel()
 	{
-		if (_townPanel is not null)
+		if (_townUi is not null)
 		{
-			_townPanel.Visible = false;
+			_townUi.Visible = false;
 		}
 	}
 
@@ -1890,30 +2264,341 @@ public partial class InfiniteWorld : Node2D
 
 	private void UpdateTownPanel()
 	{
-		if (_townBody is null)
+		if (_townUi is null)
 		{
 			return;
 		}
 
-		StringBuilder builder = new();
-		builder.AppendLine("Town center at (0, 0)");
-		builder.AppendLine();
-		builder.AppendLine("Status:");
-		builder.AppendLine("Starter settlement with a humble camp and stockyard.");
-		builder.AppendLine();
-		builder.AppendLine("Buildings:");
-		foreach (string building in _townBuildings)
+		_townUi.SetData(BuildTownViewData());
+	}
+
+	private TownViewData BuildTownViewData()
+	{
+		List<TownResourceViewData> resources = new();
+		foreach (ItemDefinition item in GameCatalog.Items)
 		{
-			builder.AppendLine($"- {building}");
+			resources.Add(new TownResourceViewData
+			{
+				ItemId = item.Id,
+				DisplayName = item.DisplayName,
+				IconGlyph = GetItemGlyph(item.Id),
+				Amount = _townState.GetStoredCount(item.Id),
+				SellValue = item.SellPriceCoins,
+				Selected = _selectedSellItemId == item.Id,
+			});
 		}
 
-		_townBody.Text = builder.ToString().TrimEnd();
-		if (_townGoldLabel is not null)
+		List<BuildingCardViewData> buildings = new();
+		foreach (BuildingDefinition definition in GameCatalog.Buildings)
 		{
-			_townGoldLabel.Text = $"Gold {_townState.Gold}";
+			BuildingCardViewData card = BuildBuildingCardViewData(definition);
+			if (ShouldIncludeBuildingInFilter(card))
+			{
+				buildings.Add(card);
+			}
 		}
-		UpdateStockpileBar();
-		RefreshSellList();
+
+		return new TownViewData
+		{
+			SettlementTitle = "Starter Town",
+			Gold = _townState.Gold,
+			StockpileCurrent = _townState.GetStoredCountTotal(),
+			StockpileCapacity = _townState.StockpileCapacity,
+			StockpileSummary = $"Stockpile {_townState.GetStoredCountTotal()}/{_townState.StockpileCapacity}",
+			StockpileUpgradeSummary =
+				$"Stockpile Lv.{_townState.StockpileLevel} -> Lv.{_townState.StockpileLevel + 1}\n" +
+				$"Capacity {_townState.StockpileCapacity} -> {GetNextStockpileCapacity()}\n" +
+				$"Cost: {GetStockpileUpgradeSticksCost()} sticks, {GetStockpileUpgradeStonesCost()} stones\n" +
+				$"Time: {GetStockpileUpgradeDurationSeconds():0}s while the worker stays in town",
+			CanUpgradeStockpile = CanQueueStockpileUpgrade(),
+			Resources = resources,
+			SellPrompt = BuildSellPrompt(),
+			SellPercent = _selectedSellPercent,
+			SellAmountText = BuildSellAmountText(),
+			CanSell = CanSellSelectedResources(),
+			Buildings = buildings,
+			ActiveFilter = _activeBuildingFilter,
+			LedgerText =
+				$"Town center at (0, 0)\n\n" +
+				$"Stockpile level: Lv.{_townState.StockpileLevel}\n" +
+				$"Building skill: Lv.{_characterState.GetSkillLevel(GameCatalog.Building.Id)}\n\n" +
+				$"Town Hall Lv.1\n" +
+				$"Stockpile Lv.{_townState.StockpileLevel}\n" +
+				$"Campfire Lv.1",
+		};
+	}
+
+	private BuildingCardViewData BuildBuildingCardViewData(BuildingDefinition definition)
+	{
+		BuildingState state = _townState.GetBuildingState(definition.Id);
+		bool isBuilt = state.IsBuilt;
+		bool isMaxLevel = state.IsMaxLevel(definition);
+		int targetLevel = isBuilt ? state.CurrentLevel + 1 : 1;
+		targetLevel = Mathf.Clamp(targetLevel, 1, definition.MaxLevel);
+		BuildingLevelDefinition level = definition.GetLevelDefinition(targetLevel);
+		bool hasSkillRequirement = _characterState.GetSkillLevel(definition.RequiredSkillId) >= definition.RequiredSkillLevel;
+		bool isUnlocked = hasSkillRequirement;
+		bool canAfford = _townState.CanAfford(level.Costs);
+		bool isQueued = HasQueuedBuildingCommand(definition.Id);
+		bool canAct = isUnlocked && !state.IsUnderConstruction && !isMaxLevel && canAfford && !isQueued;
+
+		List<TownCostViewData> costs = new();
+		foreach (BuildingCostDefinition cost in level.Costs)
+		{
+			ItemDefinition item = GameCatalog.GetItem(cost.ItemId);
+			costs.Add(new TownCostViewData
+			{
+				ItemId = cost.ItemId,
+				ItemName = item.DisplayName,
+				IconGlyph = GetItemGlyph(cost.ItemId),
+				Amount = cost.Amount,
+				Affordable = _townState.GetStoredCount(cost.ItemId) >= cost.Amount,
+			});
+		}
+
+		string status = state.IsUnderConstruction
+			? $"Constructing Lv.{state.TargetLevel}"
+			: isQueued
+				? "Queued"
+				: isBuilt
+					? "Idle"
+					: "Not built";
+		string requirementSkillName = GameCatalog.GetSkill(definition.RequiredSkillId).DisplayName;
+		string requirementText = isUnlocked
+			? $"Requires {requirementSkillName} Lv.{definition.RequiredSkillLevel}"
+			: $"Locked: needs {requirementSkillName} Lv.{definition.RequiredSkillLevel}";
+		string actionText = isMaxLevel
+			? "Max Level"
+			: isBuilt
+				? "Upgrade"
+				: "Build";
+		string actionHint = isMaxLevel
+			? "This structure has reached its finest form."
+			: state.IsUnderConstruction
+				? $"In progress. {Mathf.CeilToInt((float)(state.TotalSeconds - state.ProgressSeconds))}s remaining."
+				: isQueued
+					? "Queued in the worker command list."
+					: canAfford
+						? "Affordable now."
+						: "Missing some materials.";
+
+		return new BuildingCardViewData
+		{
+			BuildingId = definition.Id,
+			DisplayName = definition.DisplayName,
+			Description = definition.Description,
+			IconGlyph = definition.IconGlyph,
+			AccentColor = definition.AccentColor,
+			CurrentLevel = state.CurrentLevel,
+			MaxLevel = definition.MaxLevel,
+			IsBuilt = isBuilt,
+			IsUnlocked = isUnlocked,
+			IsUnderConstruction = state.IsUnderConstruction,
+			IsMaxLevel = isMaxLevel,
+			CanAfford = canAfford,
+			CanAct = canAct,
+			StatusText = status,
+			RequirementText = requirementText,
+			TimeText = $"{(isBuilt ? "Upgrade" : "Build")} {FormatDuration(level.DurationSeconds)}",
+			OutputSummary = level.OutputSummary,
+			BenefitSummary = level.BenefitSummary,
+			PrimaryButtonText = actionText,
+			LevelText = $"Lv.{state.CurrentLevel}/{definition.MaxLevel}",
+			ActionHintText = actionHint,
+			Progress = (float)state.ConstructionProgress,
+			ProgressText = state.IsUnderConstruction ? $"{Mathf.RoundToInt((float)(state.ConstructionProgress * 100.0))}% complete" : string.Empty,
+			IsUpgradeAction = isBuilt,
+			Illustration = definition.Illustration,
+			Costs = costs,
+		};
+	}
+
+	private bool ShouldIncludeBuildingInFilter(BuildingCardViewData card)
+	{
+		return _activeBuildingFilter switch
+		{
+			TownBuildingFilter.Available => !card.IsBuilt,
+			TownBuildingFilter.Existing => card.IsBuilt,
+			_ => true,
+		};
+	}
+
+	private bool HasQueuedBuildingCommand(string buildingId)
+	{
+		if (_activeGatherCommand?.Kind == WorkKind.BuildingConstruction && _activeGatherCommand.BuildingId == buildingId)
+		{
+			return true;
+		}
+
+		foreach (GatherCommand command in _queuedCommands)
+		{
+			if (command.Kind == WorkKind.BuildingConstruction && command.BuildingId == buildingId)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private string BuildSellPrompt()
+	{
+		if (_selectedSellItemId is null)
+		{
+			return "Select a resource to sell";
+		}
+
+		ItemDefinition item = GameCatalog.GetItem(_selectedSellItemId);
+		return $"Select how much {item.DisplayName.ToLowerInvariant()} to sell";
+	}
+
+	private string BuildSellAmountText()
+	{
+		if (_selectedSellItemId is null)
+		{
+			return "0%";
+		}
+
+		ItemDefinition item = GameCatalog.GetItem(_selectedSellItemId);
+		int stored = _townState.GetStoredCount(item.Id);
+		int amount = (stored * _selectedSellPercent) / 100;
+		int gold = amount * item.SellPriceCoins;
+		return $"{_selectedSellPercent}%  Sell {amount}  Gold {gold}";
+	}
+
+	private bool CanSellSelectedResources()
+	{
+		if (_selectedSellItemId is null || _selectedSellPercent <= 0)
+		{
+			return false;
+		}
+
+		return _townState.GetStoredCount(_selectedSellItemId) > 0;
+	}
+
+	private static string GetItemGlyph(string itemId)
+	{
+		return itemId switch
+		{
+			"sticks" => "/",
+			"stones" => "O",
+			"berries" => "*",
+			"logs" => "=",
+			_ => "+",
+		};
+	}
+
+	private bool CanQueueStockpileUpgrade()
+	{
+		return GetProjectedTownItemCount(GameCatalog.Sticks.Id) >= GetStockpileUpgradeSticksCost() &&
+			GetProjectedTownItemCount(GameCatalog.Stones.Id) >= GetStockpileUpgradeStonesCost();
+	}
+
+	private void OnStockpileUpgradePressed()
+	{
+		if (!CanQueueStockpileUpgrade())
+		{
+			UpdateStatus($"Stockpile upgrade needs {GetStockpileUpgradeSticksCost()} sticks and {GetStockpileUpgradeStonesCost()} stones in town storage.");
+			return;
+		}
+
+		int projectedLevel = _townState.StockpileLevel + GetQueuedStockpileUpgradeCount() + (_activeGatherCommand?.Kind == WorkKind.TownUpgrade ? 1 : 0);
+		EnqueueCommand(new GatherCommand
+		{
+			Kind = WorkKind.TownUpgrade,
+			TownUpgradeId = "stockpile",
+			Cell = TownCell,
+			TotalAmount = 1,
+			RemainingAmount = 1,
+			Description = $"Upgrade stockpile to Lv.{projectedLevel + 1}",
+		});
+		HideActionPanel();
+		UpdateTownPanel();
+		UpdateStatus($"Queued stockpile upgrade to Lv.{projectedLevel + 1}.");
+	}
+
+	private int GetQueuedStockpileUpgradeCount()
+	{
+		int count = 0;
+		foreach (GatherCommand command in _queuedCommands)
+		{
+			if (command.Kind == WorkKind.TownUpgrade && command.TownUpgradeId == "stockpile")
+			{
+				count++;
+			}
+		}
+
+		return count;
+	}
+
+	private void QueueBuildingConstruction(string buildingId, bool upgrade)
+	{
+		BuildingDefinition definition = GameCatalog.GetBuilding(buildingId);
+		BuildingState state = _townState.GetBuildingState(buildingId);
+		if (state.IsUnderConstruction)
+		{
+			UpdateStatus($"{definition.DisplayName} is already under construction.");
+			return;
+		}
+
+		if (HasQueuedBuildingCommand(buildingId))
+		{
+			UpdateStatus($"{definition.DisplayName} is already queued.");
+			return;
+		}
+
+		if (_characterState.GetSkillLevel(definition.RequiredSkillId) < definition.RequiredSkillLevel)
+		{
+			SkillDefinition requiredSkill = GameCatalog.GetSkill(definition.RequiredSkillId);
+			UpdateStatus($"{definition.DisplayName} needs {requiredSkill.DisplayName} Lv.{definition.RequiredSkillLevel}.");
+			return;
+		}
+
+		if (upgrade && !state.CanUpgrade(definition))
+		{
+			UpdateStatus($"{definition.DisplayName} cannot be upgraded further right now.");
+			return;
+		}
+
+		if (!upgrade && state.IsBuilt)
+		{
+			UpdateStatus($"{definition.DisplayName} is already built.");
+			return;
+		}
+
+		int targetLevel = upgrade ? state.CurrentLevel + 1 : 1;
+		BuildingLevelDefinition level = definition.GetLevelDefinition(targetLevel);
+		if (!CanAffordProjected(level.Costs))
+		{
+			UpdateStatus($"{definition.DisplayName} needs more materials before it can start.");
+			return;
+		}
+
+		EnqueueCommand(new GatherCommand
+		{
+			Kind = WorkKind.BuildingConstruction,
+			BuildingId = definition.Id,
+			TargetLevel = targetLevel,
+			Cell = TownCell,
+			TotalAmount = 1,
+			RemainingAmount = 1,
+			Description = $"{(upgrade ? "Upgrade" : "Build")} {definition.DisplayName} to Lv.{targetLevel}",
+		});
+		UpdateTownPanel();
+		UpdateStatus($"Queued {(upgrade ? "upgrade" : "build")} for {definition.DisplayName}.");
+	}
+
+	private bool CanAffordProjected(IEnumerable<BuildingCostDefinition> costs)
+	{
+		foreach (BuildingCostDefinition cost in costs)
+		{
+			if (GetProjectedTownItemCount(cost.ItemId) < cost.Amount)
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	private void UpdateCharacterPanel()
@@ -1968,13 +2653,8 @@ public partial class InfiniteWorld : Node2D
 			return;
 		}
 
-		if (_sellPercentSlider is null)
-		{
-			return;
-		}
-
 		ItemDefinition item = GameCatalog.GetItem(_selectedSellItemId);
-		int percent = Mathf.RoundToInt((float)_sellPercentSlider.Value);
+		int percent = _selectedSellPercent;
 		if (percent <= 0)
 		{
 			UpdateStatus($"Choose a sell percentage for {item.DisplayName} first.");
@@ -1991,10 +2671,42 @@ public partial class InfiniteWorld : Node2D
 
 		int soldAmount = _townState.SellStored(item.Id, amountToSell, item.SellPriceCoins);
 		int goldEarned = soldAmount * item.SellPriceCoins;
-		_sellPercentSlider.Value = 0;
+		_selectedSellPercent = 0;
+		if (_sellPercentSlider is not null)
+		{
+			_sellPercentSlider.Value = 0;
+		}
 
 		UpdateTownPanel();
 		UpdateStatus($"Sold {soldAmount} {item.DisplayName.ToLowerInvariant()} for {goldEarned} gold. Stockpile {_townState.GetStoredCountTotal()}/{_townState.StockpileCapacity}.");
+	}
+
+	private void OnTownSellResourceSelected(string itemId)
+	{
+		_selectedSellItemId = itemId;
+		UpdateTownPanel();
+	}
+
+	private void OnTownSellPercentChanged(int percent)
+	{
+		_selectedSellPercent = percent;
+		UpdateTownPanel();
+	}
+
+	private void OnTownFilterChanged(TownBuildingFilter filter)
+	{
+		_activeBuildingFilter = filter;
+		UpdateTownPanel();
+	}
+
+	private void OnTownBuildRequested(string buildingId)
+	{
+		QueueBuildingConstruction(buildingId, false);
+	}
+
+	private void OnTownUpgradeRequested(string buildingId)
+	{
+		QueueBuildingConstruction(buildingId, true);
 	}
 
 	private void RefreshSellList()
@@ -2030,6 +2742,7 @@ public partial class InfiniteWorld : Node2D
 	{
 		if (_stockpileProgressBar is not null)
 		{
+			_stockpileProgressBar.MaxValue = _townState.StockpileCapacity;
 			_stockpileProgressBar.Value = _townState.GetStoredCountTotal();
 		}
 
@@ -2052,6 +2765,7 @@ public partial class InfiniteWorld : Node2D
 
 	private void OnSellPercentChanged(double value)
 	{
+		_selectedSellPercent = Mathf.RoundToInt((float)value);
 		if (_sellPercentLabel is not null)
 		{
 			_sellPercentLabel.Text = $"{value:0}%";
@@ -2084,6 +2798,16 @@ public partial class InfiniteWorld : Node2D
 
 	private void OnActionButtonPressed()
 	{
+		QueueSelectedAction(_actionPrimaryResourceActionId);
+	}
+
+	private void OnSecondaryActionButtonPressed()
+	{
+		QueueSelectedAction(_actionSecondaryResourceActionId);
+	}
+
+	private void QueueSelectedAction(string? actionId)
+	{
 		if (_actionWorkKind == WorkKind.Explore)
 		{
 			if (!CanQueueExploreCell(_actionCell))
@@ -2110,28 +2834,52 @@ public partial class InfiniteWorld : Node2D
 			return;
 		}
 
-		GatherCommand command = CreateGatherCommand(_actionResourceId, _actionCell, Rules.DefaultQueuedGatherAmount);
+		ResourceDefinition resource = GameCatalog.GetResource(_actionResourceId);
+		ResourceActionDefinition action = GetResourceAction(resource, actionId);
+		if (!IsResourceActionUnlocked(action))
+		{
+			SkillDefinition requiredSkill = GameCatalog.GetSkill(action.SkillId);
+			UpdateStatus($"{action.ButtonText} needs {requiredSkill.DisplayName} Lv.{action.MinSkillLevel}.");
+			return;
+		}
+
+		GatherCommand command = CreateGatherCommand(_actionResourceId, action.Id, _actionCell, Rules.DefaultQueuedGatherAmount);
 		EnqueueCommand(command);
 		HideActionPanel();
 		UpdateTownPanel();
 		UpdateQueuePanel();
 
-		ResourceDefinition resource = GameCatalog.GetResource(_actionResourceId);
-		UpdateStatus($"Queued {resource.DisplayName.ToLowerInvariant()} x{Rules.DefaultQueuedGatherAmount} at ({_actionCell.X}, {_actionCell.Y}).");
+		UpdateStatus($"Queued {action.ButtonText.ToLowerInvariant()} x{Rules.DefaultQueuedGatherAmount} at ({_actionCell.X}, {_actionCell.Y}).");
 	}
 
 	private void ClearGatherCommand()
 	{
+		CancelActiveConstructionVisualState();
 		_activeGatherCommand = null;
 		_queuedCommands.Clear();
 		_gatherProgressSeconds = 0.0;
 		_activeExploreRequirementPaid = false;
+		_activeTownUpgradePaid = false;
 		_workerPhase = WorkerPhase.Idle;
 		_queuePanelDirty = true;
 		HideActionPanel();
 		UpdateTownPanel();
 		UpdateQueuePanel();
 		UpdateStatus("Queue cleared.");
+	}
+
+	private void CancelActiveConstructionVisualState()
+	{
+		if (_activeGatherCommand?.Kind != WorkKind.BuildingConstruction || string.IsNullOrEmpty(_activeGatherCommand.BuildingId))
+		{
+			return;
+		}
+
+		BuildingState state = _townState.GetBuildingState(_activeGatherCommand.BuildingId);
+		if (state.IsUnderConstruction)
+		{
+			state.CancelConstruction();
+		}
 	}
 
 	private void UpdateCoordsLabel()
@@ -2175,6 +2923,16 @@ public partial class InfiniteWorld : Node2D
 		{
 			_exploringXpAccumulator -= 1.0;
 			_characterState.AddSkillXp(GameCatalog.Exploring.Id);
+		}
+	}
+
+	private void UpdateBuildingSkill(double delta)
+	{
+		_buildingXpAccumulator += delta * Rules.BuildingXpPerSecond;
+		while (_buildingXpAccumulator >= 1.0)
+		{
+			_buildingXpAccumulator -= 1.0;
+			_characterState.AddSkillXp(GameCatalog.Building.Id);
 		}
 	}
 

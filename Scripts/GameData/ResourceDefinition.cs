@@ -1,5 +1,7 @@
 namespace IdleNet;
 
+using System.Collections.Generic;
+
 public sealed class ResourceDefinition
 {
     public required string Id { get; init; }
@@ -13,5 +15,6 @@ public sealed class ResourceDefinition
     public required string ItemId { get; init; }
 
     public required string SkillId { get; init; }
-}
 
+    public List<ResourceActionDefinition> AlternateActions { get; init; } = new();
+}

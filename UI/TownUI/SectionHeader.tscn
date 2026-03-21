@@ -1,0 +1,33 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/TownUI/SectionHeader.cs" id="1_script"]
+[ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="2_theme"]
+
+[node name="SectionHeader" type="MarginContainer"]
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="HBox" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LineLeft" type="PanelContainer" parent="HBox"]
+custom_minimum_size = Vector2(0, 12)
+size_flags_horizontal = 3
+
+[node name="GemFrame" type="PanelContainer" parent="HBox"]
+custom_minimum_size = Vector2(28, 28)
+
+[node name="GemLabel" type="Label" parent="HBox/GemFrame"]
+layout_mode = 0
+offset_right = 28.0
+offset_bottom = 28.0
+text = "*"
+
+[node name="TitleLabel" type="Label" parent="HBox"]
+size_flags_horizontal = 3
+text = "Header"
+
+[node name="LineRight" type="PanelContainer" parent="HBox"]
+custom_minimum_size = Vector2(0, 12)
+size_flags_horizontal = 3

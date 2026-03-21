@@ -1,0 +1,71 @@
+[gd_resource type="Resource" script_class="BuildingDefinition" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Data/BuildingDefinition.cs" id="1_building"]
+[ext_resource type="Script" path="res://Scripts/Data/BuildingLevelDefinition.cs" id="2_level"]
+[ext_resource type="Script" path="res://Scripts/Data/BuildingCostDefinition.cs" id="3_cost"]
+
+[sub_resource type="Resource" id="1"]
+script = ExtResource("3_cost")
+ItemId = "stones"
+Amount = 25
+
+[sub_resource type="Resource" id="2"]
+script = ExtResource("3_cost")
+ItemId = "sticks"
+Amount = 10
+
+[sub_resource type="Resource" id="3"]
+script = ExtResource("2_level")
+Level = 1
+DurationSeconds = 60.0
+OutputSummary = "Organized quarry pits."
+BenefitSummary = "Establishes steady stone extraction for town works."
+Costs = Array[Resource]([SubResource("1"), SubResource("2")])
+
+[sub_resource type="Resource" id="4"]
+script = ExtResource("3_cost")
+ItemId = "stones"
+Amount = 40
+
+[sub_resource type="Resource" id="5"]
+script = ExtResource("3_cost")
+ItemId = "sticks"
+Amount = 18
+
+[sub_resource type="Resource" id="6"]
+script = ExtResource("2_level")
+Level = 2
+DurationSeconds = 80.0
+OutputSummary = "Reinforced quarry scaffolds."
+BenefitSummary = "Supports larger civic and defensive projects."
+Costs = Array[Resource]([SubResource("4"), SubResource("5")])
+
+[sub_resource type="Resource" id="7"]
+script = ExtResource("3_cost")
+ItemId = "stones"
+Amount = 60
+
+[sub_resource type="Resource" id="8"]
+script = ExtResource("3_cost")
+ItemId = "sticks"
+Amount = 26
+
+[sub_resource type="Resource" id="9"]
+script = ExtResource("2_level")
+Level = 3
+DurationSeconds = 105.0
+OutputSummary = "Deep-cut quarry operation."
+BenefitSummary = "Unlocks major masonry and fortification work."
+Costs = Array[Resource]([SubResource("7"), SubResource("8")])
+
+[resource]
+script = ExtResource("1_building")
+Id = "stone_quarry"
+DisplayName = "Stone Quarry"
+Description = "A cut-stone yard with ramps, pits, and lifting gear for heavy masonry."
+IconGlyph = "Q"
+AccentColorHex = "#9EA5AE"
+MaxLevel = 3
+RequiredSkillId = "mining"
+RequiredSkillLevel = 2
+Levels = Array[Resource]([SubResource("3"), SubResource("6"), SubResource("9")])
