@@ -1245,14 +1245,7 @@ public partial class InfiniteWorld : Node2D
 			bool hasStones = _townState.GetStoredCount(GameCatalog.Stones.Id) >= stonesCost;
 			if (!hasSticks || !hasStones)
 			{
-				if (!hasSticks)
-				{
-					CompleteCurrentCommand($"Stockpile upgrade stopped. Town needs {sticksCost} sticks.");
-				}
-				else
-				{
-					CompleteCurrentCommand($"Stockpile upgrade stopped. Town needs {stonesCost} stones.");
-				}
+				RequeueStockpileUpgradeForRequirements();
 				UpdateTownPanel();
 				return;
 			}
@@ -1633,6 +1626,74 @@ public partial class InfiniteWorld : Node2D
 		return true;
 	}
 
+	private bool QueueStockpileUpgradeWithRequirements(bool prioritize, out string statusMessage)
+	{
+		statusMessage = string.Empty;
+
+		int sticksShortfall = System.Math.Max(0, GetStockpileUpgradeSticksCost() - GetProjectedTownItemCount(GameCatalog.Sticks.Id));
+		int stonesShortfall = System.Math.Max(0, GetStockpileUpgradeStonesCost() - GetProjectedTownItemCount(GameCatalog.Stones.Id));
+		List<GatherCommand> plannedCommands = new();
+		List<string> queuedRequirements = new();
+
+		if (sticksShortfall > 0)
+		{
+			GatherCommand? sticksCommand = BuildGatherCommandForItem(GameCatalog.Sticks.Id, sticksShortfall);
+			if (sticksCommand is null)
+			{
+				statusMessage = $"No explored source is available to gather {GameCatalog.Sticks.DisplayName.ToLowerInvariant()}.";
+				return false;
+			}
+
+			plannedCommands.Add(sticksCommand);
+			queuedRequirements.Add($"{sticksShortfall} {GameCatalog.Sticks.DisplayName.ToLowerInvariant()}");
+		}
+
+		if (stonesShortfall > 0)
+		{
+			GatherCommand? stonesCommand = BuildGatherCommandForItem(GameCatalog.Stones.Id, stonesShortfall);
+			if (stonesCommand is null)
+			{
+				statusMessage = $"No explored source is available to gather {GameCatalog.Stones.DisplayName.ToLowerInvariant()}.";
+				return false;
+			}
+
+			plannedCommands.Add(stonesCommand);
+			queuedRequirements.Add($"{stonesShortfall} {GameCatalog.Stones.DisplayName.ToLowerInvariant()}");
+		}
+
+		int projectedLevel = _townState.StockpileLevel + GetQueuedStockpileUpgradeCount() + (_activeGatherCommand?.Kind == WorkKind.TownUpgrade ? 1 : 0);
+		plannedCommands.Add(new GatherCommand
+		{
+			Kind = WorkKind.TownUpgrade,
+			TownUpgradeId = "stockpile",
+			Cell = TownCell,
+			TotalAmount = 1,
+			RemainingAmount = 1,
+			Description = $"Upgrade stockpile to Lv.{projectedLevel + 1}",
+		});
+
+		if (prioritize)
+		{
+			_queuedCommands.InsertRange(0, plannedCommands);
+		}
+		else
+		{
+			_queuedCommands.AddRange(plannedCommands);
+		}
+
+		_queuePanelDirty = true;
+		UpdateQueuePanel();
+		if (_activeGatherCommand is null)
+		{
+			TryStartNextQueuedCommand();
+		}
+
+		statusMessage = queuedRequirements.Count > 0
+			? $"Queued {FormatRequirementList(queuedRequirements)} first, then upgrade stockpile to Lv.{projectedLevel + 1}."
+			: $"Queued stockpile upgrade to Lv.{projectedLevel + 1}.";
+		return true;
+	}
+
 	private void RequeueExploreCommandForRequirements(GatherCommand exploreCommand)
 	{
 		_activeGatherCommand = null;
@@ -1648,6 +1709,24 @@ public partial class InfiniteWorld : Node2D
 		}
 
 		UpdateStatus($"Stopped explore at ({exploreCommand.Cell.X}, {exploreCommand.Cell.Y}). {statusMessage}");
+		TryStartNextQueuedCommand();
+	}
+
+	private void RequeueStockpileUpgradeForRequirements()
+	{
+		_activeGatherCommand = null;
+		_gatherProgressSeconds = 0.0;
+		_activeTownUpgradePaid = false;
+		_workerPhase = WorkerPhase.Idle;
+		_queuePanelDirty = true;
+
+		if (QueueStockpileUpgradeWithRequirements(true, out string statusMessage))
+		{
+			UpdateStatus(statusMessage);
+			return;
+		}
+
+		UpdateStatus($"Stopped stockpile upgrade. {statusMessage}");
 		TryStartNextQueuedCommand();
 	}
 
@@ -2383,6 +2462,32 @@ public partial class InfiniteWorld : Node2D
 		return _activeGatherCommand is not null || _queuedCommands.Count > 0;
 	}
 
+	private static string FormatRequirementList(IReadOnlyList<string> requirements)
+	{
+		switch (requirements.Count)
+		{
+			case 0:
+				return string.Empty;
+			case 1:
+				return requirements[0];
+			case 2:
+				return $"{requirements[0]} and {requirements[1]}";
+		}
+
+		StringBuilder builder = new();
+		for (int index = 0; index < requirements.Count; index++)
+		{
+			if (index > 0)
+			{
+				builder.Append(index == requirements.Count - 1 ? " and " : ", ");
+			}
+
+			builder.Append(requirements[index]);
+		}
+
+		return builder.ToString();
+	}
+
 	private static string FormatFixedSeconds(double seconds, int decimals)
 	{
 		string format = decimals <= 1 ? "0.0" : "0.00";
@@ -2643,31 +2748,22 @@ public partial class InfiniteWorld : Node2D
 
 	private bool CanQueueStockpileUpgrade()
 	{
-		return GetProjectedTownItemCount(GameCatalog.Sticks.Id) >= GetStockpileUpgradeSticksCost() &&
-			GetProjectedTownItemCount(GameCatalog.Stones.Id) >= GetStockpileUpgradeStonesCost();
+		int sticksShortfall = System.Math.Max(0, GetStockpileUpgradeSticksCost() - GetProjectedTownItemCount(GameCatalog.Sticks.Id));
+		int stonesShortfall = System.Math.Max(0, GetStockpileUpgradeStonesCost() - GetProjectedTownItemCount(GameCatalog.Stones.Id));
+		return (sticksShortfall == 0 || BuildGatherCommandForItem(GameCatalog.Sticks.Id, sticksShortfall) is not null) &&
+			(stonesShortfall == 0 || BuildGatherCommandForItem(GameCatalog.Stones.Id, stonesShortfall) is not null);
 	}
 
 	private void OnStockpileUpgradePressed()
 	{
-		if (!CanQueueStockpileUpgrade())
+		if (!QueueStockpileUpgradeWithRequirements(false, out string statusMessage))
 		{
-			UpdateStatus($"Stockpile upgrade needs {GetStockpileUpgradeSticksCost()} sticks and {GetStockpileUpgradeStonesCost()} stones in town storage.");
+			UpdateStatus(statusMessage);
 			return;
 		}
-
-		int projectedLevel = _townState.StockpileLevel + GetQueuedStockpileUpgradeCount() + (_activeGatherCommand?.Kind == WorkKind.TownUpgrade ? 1 : 0);
-		EnqueueCommand(new GatherCommand
-		{
-			Kind = WorkKind.TownUpgrade,
-			TownUpgradeId = "stockpile",
-			Cell = TownCell,
-			TotalAmount = 1,
-			RemainingAmount = 1,
-			Description = $"Upgrade stockpile to Lv.{projectedLevel + 1}",
-		});
 		HideActionPanel();
 		UpdateTownPanel();
-		UpdateStatus($"Queued stockpile upgrade to Lv.{projectedLevel + 1}.");
+		UpdateStatus(statusMessage);
 	}
 
 	private int GetQueuedStockpileUpgradeCount()
