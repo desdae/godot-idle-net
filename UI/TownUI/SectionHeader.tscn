@@ -9,19 +9,19 @@ script = ExtResource("1_script")
 
 [node name="HBox" type="HBoxContainer" parent="."]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="LineLeft" type="PanelContainer" parent="HBox"]
-custom_minimum_size = Vector2(0, 12)
+custom_minimum_size = Vector2(0, 10)
 size_flags_horizontal = 3
 
 [node name="GemFrame" type="PanelContainer" parent="HBox"]
-custom_minimum_size = Vector2(28, 28)
+custom_minimum_size = Vector2(24, 24)
 
 [node name="GemLabel" type="Label" parent="HBox/GemFrame"]
 layout_mode = 0
-offset_right = 28.0
-offset_bottom = 28.0
+offset_right = 24.0
+offset_bottom = 24.0
 text = "*"
 
 [node name="TitleLabel" type="Label" parent="HBox"]

@@ -10,82 +10,85 @@ size_flags_horizontal = 3
 
 [node name="Outer" type="MarginContainer" parent="."]
 layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
 
-[node name="Row" type="HBoxContainer" parent="Outer"]
+[node name="MainColumn" type="VBoxContainer" parent="Outer"]
 layout_mode = 2
-theme_override_constants/separation = 14
+theme_override_constants/separation = 3
 
-[node name="IllustrationFrame" type="PanelContainer" parent="Outer/Row"]
-custom_minimum_size = Vector2(120, 120)
+[node name="HeaderRow" type="HBoxContainer" parent="Outer/MainColumn"]
+theme_override_constants/separation = 6
 
-[node name="IllustrationGlyph" type="Label" parent="Outer/Row/IllustrationFrame"]
+[node name="IllustrationFrame" type="PanelContainer" parent="Outer/MainColumn/HeaderRow"]
+custom_minimum_size = Vector2(60, 60)
+
+[node name="IllustrationGlyph" type="Label" parent="Outer/MainColumn/HeaderRow/IllustrationFrame"]
 layout_mode = 0
-offset_right = 120.0
-offset_bottom = 120.0
+offset_right = 60.0
+offset_bottom = 60.0
 text = "H"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Info" type="VBoxContainer" parent="Outer/Row"]
+[node name="Info" type="VBoxContainer" parent="Outer/MainColumn/HeaderRow"]
 size_flags_horizontal = 3
-theme_override_constants/separation = 6
+theme_override_constants/separation = 3
 
-[node name="TitleRow" type="HBoxContainer" parent="Outer/Row/Info"]
+[node name="TitleRow" type="HBoxContainer" parent="Outer/MainColumn/HeaderRow/Info"]
 theme_override_constants/separation = 8
 
-[node name="TitleLabel" type="Label" parent="Outer/Row/Info/TitleRow"]
+[node name="TitleLabel" type="Label" parent="Outer/MainColumn/HeaderRow/Info/TitleRow"]
 size_flags_horizontal = 3
 text = "House"
 
-[node name="LevelLabel" type="Label" parent="Outer/Row/Info/TitleRow"]
+[node name="LevelLabel" type="Label" parent="Outer/MainColumn/HeaderRow/Info/TitleRow"]
 text = "Lv.1/3"
 
-[node name="DescriptionLabel" type="Label" parent="Outer/Row/Info"]
-autowrap_mode = 2
+[node name="SummaryLabel" type="Label" parent="Outer/MainColumn/HeaderRow/Info"]
+clip_text = true
 text = "Description"
 
-[node name="MetaRow" type="HBoxContainer" parent="Outer/Row/Info"]
-theme_override_constants/separation = 12
+[node name="MetaRow" type="HBoxContainer" parent="Outer/MainColumn/HeaderRow/Info"]
+theme_override_constants/separation = 10
 
-[node name="StatusLabel" type="Label" parent="Outer/Row/Info/MetaRow"]
+[node name="StatusLabel" type="Label" parent="Outer/MainColumn/HeaderRow/Info/MetaRow"]
 size_flags_horizontal = 3
 text = "Idle"
 
-[node name="TimeLabel" type="Label" parent="Outer/Row/Info/MetaRow"]
+[node name="TimeLabel" type="Label" parent="Outer/MainColumn/HeaderRow/Info/MetaRow"]
 text = "Build 20s"
 
-[node name="RequirementsLabel" type="Label" parent="Outer/Row/Info"]
-autowrap_mode = 2
+[node name="ShortRequirementLabel" type="Label" parent="Outer/MainColumn/HeaderRow/Info"]
+clip_text = true
 text = "Requires Building 1"
 
-[node name="EffectLabel" type="Label" parent="Outer/Row/Info"]
-autowrap_mode = 2
-text = "Effects"
+[node name="ActionButton" type="Button" parent="Outer/MainColumn/HeaderRow"]
+custom_minimum_size = Vector2(112, 36)
+text = "Build"
 
-[node name="CostsContainer" type="VBoxContainer" parent="Outer/Row/Info"]
+[node name="DetailBlock" type="VBoxContainer" parent="Outer/MainColumn"]
+visible = false
 theme_override_constants/separation = 4
 
-[node name="ConstructionProgress" type="ProgressBar" parent="Outer/Row/Info"]
+[node name="DetailDivider" type="PanelContainer" parent="Outer/MainColumn/DetailBlock"]
+custom_minimum_size = Vector2(0, 2)
+
+[node name="DetailLabel" type="Label" parent="Outer/MainColumn/DetailBlock"]
+autowrap_mode = 2
+text = "Benefits"
+
+[node name="CostsContainer" type="HFlowContainer" parent="Outer/MainColumn/DetailBlock"]
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+
+[node name="ConstructionProgress" type="ProgressBar" parent="Outer/MainColumn/DetailBlock"]
 visible = false
-custom_minimum_size = Vector2(0, 16)
+custom_minimum_size = Vector2(0, 10)
 show_percentage = false
 
-[node name="ProgressLabel" type="Label" parent="Outer/Row/Info"]
+[node name="ProgressLabel" type="Label" parent="Outer/MainColumn/DetailBlock"]
 visible = false
 text = "0%"
-
-[node name="HintLabel" type="Label" parent="Outer/Row/Info"]
-autowrap_mode = 2
-text = "Hint"
-
-[node name="ActionColumn" type="VBoxContainer" parent="Outer/Row"]
-custom_minimum_size = Vector2(180, 0)
-alignment = 1
-
-[node name="ActionButton" type="Button" parent="Outer/Row/ActionColumn"]
-custom_minimum_size = Vector2(170, 56)
-text = "Build"

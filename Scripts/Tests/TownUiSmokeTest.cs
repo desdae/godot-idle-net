@@ -43,35 +43,36 @@ public partial class TownUiSmokeTest : Node
 			Require(_townUi.IsVisibleInTree(), "Town UI should be visible in the scene tree after opening.");
 
 			Control frame = _townUi.GetNode<Control>("Frame");
-			Button closeButton = _townUi.GetNode<Button>("Frame/OuterMargin/RootColumn/CloseButton");
-			ProgressBar stockpileBar = _townUi.GetNode<ProgressBar>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/ResourcePanel/ResourceColumn/StockpileBar");
-			Button stockpileUpgradeButton = _townUi.GetNode<Button>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/ResourcePanel/ResourceColumn/StockpileUpgradeButton");
-			VBoxContainer resourceList = _townUi.GetNode<VBoxContainer>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/ResourcePanel/ResourceColumn/ResourceList");
-			Label sellPromptLabel = _townUi.GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel/SellColumn/SellPromptLabel");
-			Label sellValueLabel = _townUi.GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel/SellColumn/SellSummaryRow/SellValueLabel");
-			HSlider sellSlider = _townUi.GetNode<HSlider>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel/SellColumn/SellSlider");
-			Button sellButton = _townUi.GetNode<Button>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel/SellColumn/SellButton");
-			ScrollContainer bodyScroll = _townUi.GetNode<ScrollContainer>("Frame/OuterMargin/RootColumn/BodyScroll");
-			ScrollContainer buildingScroll = _townUi.GetNode<ScrollContainer>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/BuildPanel/BuildColumn/BuildingScroll");
-			VBoxContainer buildingList = _townUi.GetNode<VBoxContainer>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/BuildPanel/BuildColumn/BuildingScroll/BuildingList");
+			ProgressBar stockpileBar = _townUi.GetNode<ProgressBar>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileBar");
+			Button stockpileUpgradeButton = _townUi.GetNode<Button>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileMetaRow/StockpileUpgradeButton");
+			VBoxContainer resourceList = _townUi.GetNode<VBoxContainer>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/ResourceColumn/ResourceList");
+			Label sellPromptLabel = _townUi.GetNode<Label>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellPromptLabel");
+			Label sellValueLabel = _townUi.GetNode<Label>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellSummaryRow/SellValueLabel");
+			HSlider sellSlider = _townUi.GetNode<HSlider>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellSlider");
+			Button sellButton = _townUi.GetNode<Button>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellButton");
+			ScrollContainer buildingScroll = _townUi.GetNode<ScrollContainer>("Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildingScroll");
+			VBoxContainer buildingList = _townUi.GetNode<VBoxContainer>("Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildingScroll/BuildingList");
+			Button closeButton = _townUi.GetNode<Button>("Frame/OuterMargin/RootColumn/FooterPanel/FooterMargin/FooterRow/CloseButton");
 
 			AssertInsideViewport(frame, "Town frame");
-			AssertInsideViewport(closeButton, "Town close button");
 			AssertInsideViewport(stockpileBar, "Stockpile bar");
+			AssertInsideViewport(sellSlider, "Sell slider");
+			AssertInsideViewport(sellButton, "Sell button");
+			AssertInsideViewport(closeButton, "Close button");
 
 			Require(stockpileBar.IsVisibleInTree(), "Stockpile bar should be visible when the town UI is open.");
 			Require(stockpileUpgradeButton.IsVisibleInTree(), "Stockpile upgrade button should be visible when the town UI is open.");
 			Require(stockpileUpgradeButton.Disabled, "Stockpile upgrade button should start disabled before materials are gathered.");
 			Require(resourceList.GetChildCount() > 0, "Town resource rows should be populated.");
 			Require(buildingList.GetChildCount() > 0, "Build & Upgrade cards should be populated.");
-			Require(bodyScroll.IsVisibleInTree(), "Town body scroll should stay visible so lower sections remain reachable.");
+			Require(buildingScroll.IsVisibleInTree(), "Building scroll should be visible.");
 			Require(buildingScroll.Size.Y > 0.0f, "Building scroll container should have usable height.");
 			Require(closeButton.IsVisibleInTree(), "Close button should be visible.");
 
-			bodyScroll.EnsureControlVisible(sellButton);
-			await WaitFrames(3);
-			AssertInsideViewport(sellSlider, "Sell slider");
-			AssertInsideViewport(sellButton, "Sell button");
+			if (buildingList.GetChildCount() > 0 && buildingList.GetChild(0) is Control firstCard)
+			{
+				AssertInsideViewport(firstCard, "First building card");
+			}
 
 			string initialPrompt = sellPromptLabel.Text;
 			_townUi.RequestSellResourceSelection("sticks");

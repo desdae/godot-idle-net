@@ -48,7 +48,7 @@ public partial class SectionHeader : MarginContainer
         _titleLabel.AddThemeColorOverride("font_shadow_color", new Color(0.10f, 0.06f, 0.03f, 0.9f));
         _titleLabel.AddThemeConstantOverride("shadow_offset_x", 2);
         _titleLabel.AddThemeConstantOverride("shadow_offset_y", 2);
-        _titleLabel.AddThemeFontSizeOverride("font_size", 20);
+        _titleLabel.AddThemeFontSizeOverride("font_size", 18);
         _titleLabel.HorizontalAlignment = HorizontalAlignment.Center;
     }
 
@@ -65,7 +65,7 @@ public partial class SectionHeader : MarginContainer
             BorderColor = new Color(0.73f, 0.57f, 0.30f, 0.88f),
             BorderWidthBottom = 1,
             ExpandMarginBottom = 1.0f,
-            ContentMarginTop = 8.0f,
+            ContentMarginTop = 6.0f,
         };
         panel.AddThemeStyleboxOverride("panel", style);
     }
@@ -85,15 +85,15 @@ public partial class SectionHeader : MarginContainer
             BorderWidthTop = 2,
             BorderWidthRight = 2,
             BorderWidthBottom = 2,
-            CornerRadiusTopLeft = 12,
-            CornerRadiusTopRight = 12,
-            CornerRadiusBottomLeft = 12,
-            CornerRadiusBottomRight = 12,
+            CornerRadiusTopLeft = 10,
+            CornerRadiusTopRight = 10,
+            CornerRadiusBottomLeft = 10,
+            CornerRadiusBottomRight = 10,
         };
         _gemFrame.AddThemeStyleboxOverride("panel", frameStyle);
         _gemLabel.Text = GemGlyph;
         _gemLabel.AddThemeColorOverride("font_color", new Color(0.72f, 0.95f, 0.62f));
-        _gemLabel.AddThemeFontSizeOverride("font_size", 18);
+        _gemLabel.AddThemeFontSizeOverride("font_size", 15);
         _gemLabel.HorizontalAlignment = HorizontalAlignment.Center;
         _gemLabel.VerticalAlignment = VerticalAlignment.Center;
     }

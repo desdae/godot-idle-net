@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using Godot;
 
 namespace IdleNet;
@@ -39,25 +41,30 @@ public partial class TownUI : Control
     private Label? _ledgerLabel;
     private Button? _closeButton;
 
-	public override void _Ready()
-	{
-		_titleLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/HeaderPanel/HeaderRow/TitleLabel");
-		_goldLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/HeaderPanel/HeaderRow/GoldLabel");
-		_stockpileLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/ResourcePanel/ResourceColumn/StockpileLabel");
-		_stockpileBar = GetNode<ProgressBar>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/ResourcePanel/ResourceColumn/StockpileBar");
-		_stockpileUpgradeLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/ResourcePanel/ResourceColumn/StockpileUpgradeLabel");
-		_stockpileUpgradeButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/ResourcePanel/ResourceColumn/StockpileUpgradeButton");
-		_resourceList = GetNode<VBoxContainer>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/ResourcePanel/ResourceColumn/ResourceList");
-		_sellPromptLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel/SellColumn/SellPromptLabel");
-		_sellValueLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel/SellColumn/SellSummaryRow/SellValueLabel");
-		_sellSlider = GetNode<HSlider>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel/SellColumn/SellSlider");
-		_sellButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel/SellColumn/SellButton");
-		_filterAllButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/BuildPanel/BuildColumn/FilterRow/AllButton");
-		_filterAvailableButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/BuildPanel/BuildColumn/FilterRow/AvailableButton");
-		_filterExistingButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/BuildPanel/BuildColumn/FilterRow/ExistingButton");
-		_buildingList = GetNode<VBoxContainer>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/BuildPanel/BuildColumn/BuildingScroll/BuildingList");
-		_ledgerLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/LedgerPanel/LedgerMargin/LedgerLabel");
-		_closeButton = GetNode<Button>("Frame/OuterMargin/RootColumn/CloseButton");
+    private readonly List<BuildingCard> _buildingCards = new();
+    private string? _selectedBuildingId;
+    private string _resourceSignature = string.Empty;
+    private string _buildingSignature = string.Empty;
+
+    public override void _Ready()
+    {
+        _titleLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderRow/TitleLabel");
+        _goldLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderRow/GoldPanel/GoldLabel");
+        _stockpileLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileLabel");
+        _stockpileBar = GetNode<ProgressBar>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileBar");
+        _stockpileUpgradeLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileMetaRow/StockpileUpgradeLabel");
+        _stockpileUpgradeButton = GetNode<Button>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileMetaRow/StockpileUpgradeButton");
+        _resourceList = GetNode<VBoxContainer>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/ResourceColumn/ResourceList");
+        _sellPromptLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellPromptLabel");
+        _sellValueLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellSummaryRow/SellValueLabel");
+        _sellSlider = GetNode<HSlider>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellSlider");
+        _sellButton = GetNode<Button>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellButton");
+        _filterAllButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow/AllButton");
+        _filterAvailableButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow/AvailableButton");
+        _filterExistingButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow/ExistingButton");
+        _buildingList = GetNode<VBoxContainer>("Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildingScroll/BuildingList");
+        _ledgerLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/FooterPanel/FooterMargin/FooterRow/LedgerLabel");
+        _closeButton = GetNode<Button>("Frame/OuterMargin/RootColumn/FooterPanel/FooterMargin/FooterRow/CloseButton");
 
         ApplyRootStyle();
 
@@ -82,7 +89,7 @@ public partial class TownUI : Control
         }
 
         _titleLabel.Text = data.SettlementTitle;
-        _goldLabel.Text = $"o Gold {data.Gold}";
+        _goldLabel.Text = $"o {data.Gold}";
         _stockpileLabel.Text = data.StockpileSummary;
         _stockpileBar.MaxValue = data.StockpileCapacity;
         _stockpileBar.Value = data.StockpileCurrent;
@@ -96,9 +103,23 @@ public partial class TownUI : Control
         }
 
         _sellButton.Disabled = !data.CanSell;
-        RebuildResourceRows(data.Resources);
-        RebuildBuildingCards(data.Buildings, BuildingCardScene, CostRowScene);
+
+        string nextResourceSignature = BuildResourceSignature(data.Resources);
+        if (nextResourceSignature != _resourceSignature)
+        {
+            RebuildResourceRows(data.Resources);
+            _resourceSignature = nextResourceSignature;
+        }
+
+        string nextBuildingSignature = BuildBuildingSignature(data.Buildings);
+        if (nextBuildingSignature != _buildingSignature)
+        {
+            RebuildBuildingCards(data.Buildings, BuildingCardScene, CostRowScene);
+            _buildingSignature = nextBuildingSignature;
+        }
+
         _ledgerLabel.Text = data.LedgerText;
+        _ledgerLabel.TooltipText = data.LedgerText.Replace("  •  ", "\n");
         UpdateFilterButtonState(data.ActiveFilter);
     }
 
@@ -139,9 +160,10 @@ public partial class TownUI : Control
         {
             Button row = new()
             {
-                Text = $"{resource.IconGlyph}  {resource.DisplayName}   {resource.Amount}   ({resource.SellValue}g)",
+                Text = $"{resource.IconGlyph}  {resource.DisplayName}  {resource.Amount}  ({resource.SellValue}g)",
                 Alignment = HorizontalAlignment.Left,
-                CustomMinimumSize = new Vector2(0.0f, 42.0f),
+                CustomMinimumSize = new Vector2(0.0f, 34.0f),
+                TooltipText = $"{resource.DisplayName}: {resource.Amount} stored, sells for {resource.SellValue} gold each.",
             };
             ApplyResourceButtonStyle(row, resource.Selected);
             row.Pressed += () => SellResourceSelected?.Invoke(resource.ItemId);
@@ -161,13 +183,33 @@ public partial class TownUI : Control
             child.QueueFree();
         }
 
+        _buildingCards.Clear();
+
+        bool foundSelected = false;
         foreach (BuildingCardViewData building in buildings)
         {
             BuildingCard card = buildingCardScene.Instantiate<BuildingCard>();
-            card.SetData(building, costRowScene);
-            card.ActionRequested += OnBuildingCardActionRequested;
+            bool isSelected = _selectedBuildingId == building.BuildingId;
+            foundSelected |= isSelected;
             _buildingList.AddChild(card);
+            card.SetData(building, costRowScene, isSelected);
+            card.ActionRequested += OnBuildingCardActionRequested;
+            card.Selected += OnBuildingCardSelected;
+            _buildingCards.Add(card);
         }
+
+        if (_buildingCards.Count == 0)
+        {
+            _selectedBuildingId = null;
+            return;
+        }
+
+        if (!foundSelected)
+        {
+            _selectedBuildingId = _buildingCards[0].BuildingId;
+        }
+
+        ApplyBuildingSelection();
     }
 
     private void OnBuildingCardActionRequested(string buildingId, bool upgrade)
@@ -181,40 +223,73 @@ public partial class TownUI : Control
         BuildRequested?.Invoke(buildingId);
     }
 
+    private void OnBuildingCardSelected(string buildingId)
+    {
+        _selectedBuildingId = buildingId;
+        ApplyBuildingSelection();
+    }
+
+    private void ApplyBuildingSelection()
+    {
+        foreach (BuildingCard card in _buildingCards)
+        {
+            card.SetSelected(card.BuildingId == _selectedBuildingId);
+        }
+    }
+
     private void ApplyRootStyle()
     {
         PanelContainer frame = GetNode<PanelContainer>("Frame");
-        PanelContainer headerPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/HeaderPanel");
-        PanelContainer resourcePanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/ResourcePanel");
-        PanelContainer sellPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/SellPanel");
-        PanelContainer buildPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/BuildPanel");
-        PanelContainer ledgerPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/MainColumn/LedgerPanel");
+        PanelContainer headerPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/HeaderPanel");
+        PanelContainer crestFrame = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderRow/CrestFrame");
+        PanelContainer goldPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderRow/GoldPanel");
+        PanelContainer commercePanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/CommercePanel");
+        PanelContainer commerceDivider = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/CommerceDivider");
+        PanelContainer buildPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BuildPanel");
+        PanelContainer filterFrame = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame");
+        PanelContainer footerPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/FooterPanel");
+        Label crestGlyph = GetNode<Label>("Frame/OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderRow/CrestFrame/CrestGlyph");
+        Label resourceHeadingLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/ResourceColumn/ResourceHeadingLabel");
+        Label sellHeadingLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellHeadingLabel");
+        SectionHeader buildHeader = GetNode<SectionHeader>("Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/BuildHeader");
 
-        frame.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.16f, 0.11f, 0.08f, 0.97f), new Color(0.61f, 0.46f, 0.24f, 0.92f), 24, 2));
-        headerPanel.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.28f, 0.18f, 0.12f, 0.92f), new Color(0.72f, 0.57f, 0.31f, 0.88f), 18, 1));
-        resourcePanel.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.23f, 0.16f, 0.11f, 0.88f), new Color(0.56f, 0.42f, 0.22f, 0.74f), 18, 1));
-        sellPanel.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.22f, 0.15f, 0.10f, 0.86f), new Color(0.55f, 0.41f, 0.21f, 0.72f), 18, 1));
-        buildPanel.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.20f, 0.14f, 0.10f, 0.86f), new Color(0.54f, 0.40f, 0.22f, 0.74f), 18, 1));
-        ledgerPanel.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.21f, 0.15f, 0.10f, 0.82f), new Color(0.48f, 0.36f, 0.18f, 0.62f), 18, 1));
+        frame.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.14f, 0.10f, 0.07f, 0.98f), new Color(0.64f, 0.48f, 0.25f, 0.94f), 24, 2, 9, 7));
+        headerPanel.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.30f, 0.18f, 0.11f, 0.96f), new Color(0.79f, 0.60f, 0.32f, 0.86f), 18, 1, 8, 6));
+        crestFrame.AddThemeStyleboxOverride("panel", CreateInsetStyle(new Color(0.24f, 0.16f, 0.09f, 0.94f), new Color(0.86f, 0.70f, 0.38f, 0.88f), 14));
+        goldPanel.AddThemeStyleboxOverride("panel", CreateInsetStyle(new Color(0.22f, 0.15f, 0.08f, 0.95f), new Color(0.92f, 0.74f, 0.38f, 0.92f), 16));
+        commercePanel.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.24f, 0.16f, 0.10f, 0.90f), new Color(0.61f, 0.45f, 0.24f, 0.76f), 18, 1, 8, 8));
+        commerceDivider.AddThemeStyleboxOverride("panel", CreateDividerStyle());
+        buildPanel.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.20f, 0.14f, 0.10f, 0.90f), new Color(0.60f, 0.45f, 0.26f, 0.78f), 18, 1, 8, 8));
+        filterFrame.AddThemeStyleboxOverride("panel", CreateInsetStyle(new Color(0.22f, 0.16f, 0.10f, 0.85f), new Color(0.57f, 0.42f, 0.23f, 0.70f), 14));
+        footerPanel.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.18f, 0.13f, 0.09f, 0.88f), new Color(0.49f, 0.36f, 0.20f, 0.70f), 14, 1, 6, 4));
 
-        _titleLabel?.AddThemeColorOverride("font_color", new Color(0.98f, 0.91f, 0.77f));
-        _titleLabel?.AddThemeColorOverride("font_shadow_color", new Color(0.10f, 0.06f, 0.03f, 0.92f));
+        crestGlyph.AddThemeColorOverride("font_color", new Color(0.77f, 0.96f, 0.67f));
+        crestGlyph.AddThemeFontSizeOverride("font_size", 20);
+
+        buildHeader.SetTitle("Build & Upgrade");
+
+        _titleLabel?.AddThemeColorOverride("font_color", new Color(0.98f, 0.91f, 0.79f));
+        _titleLabel?.AddThemeColorOverride("font_shadow_color", new Color(0.08f, 0.05f, 0.03f, 0.88f));
         _titleLabel?.AddThemeConstantOverride("shadow_offset_x", 2);
         _titleLabel?.AddThemeConstantOverride("shadow_offset_y", 2);
-        _titleLabel?.AddThemeFontSizeOverride("font_size", 28);
+        _titleLabel?.AddThemeFontSizeOverride("font_size", 23);
 
-        _goldLabel?.AddThemeColorOverride("font_color", new Color(0.98f, 0.82f, 0.45f));
-        _goldLabel?.AddThemeFontSizeOverride("font_size", 20);
-        _stockpileLabel?.AddThemeColorOverride("font_color", new Color(0.96f, 0.89f, 0.76f));
-        _stockpileLabel?.AddThemeFontSizeOverride("font_size", 18);
-        _stockpileUpgradeLabel?.AddThemeColorOverride("font_color", new Color(0.90f, 0.84f, 0.74f));
-        _stockpileUpgradeLabel?.AddThemeFontSizeOverride("font_size", 15);
+        _goldLabel?.AddThemeColorOverride("font_color", new Color(0.99f, 0.84f, 0.46f));
+        _goldLabel?.AddThemeFontSizeOverride("font_size", 18);
+
+        ApplySmallHeadingStyle(resourceHeadingLabel);
+        ApplySmallHeadingStyle(sellHeadingLabel);
+
+        _stockpileLabel?.AddThemeColorOverride("font_color", new Color(0.97f, 0.90f, 0.77f));
+        _stockpileLabel?.AddThemeFontSizeOverride("font_size", 17);
+        _stockpileUpgradeLabel?.AddThemeColorOverride("font_color", new Color(0.89f, 0.83f, 0.74f));
+        _stockpileUpgradeLabel?.AddThemeFontSizeOverride("font_size", 12);
         _sellPromptLabel?.AddThemeColorOverride("font_color", new Color(0.95f, 0.89f, 0.78f));
-        _sellPromptLabel?.AddThemeFontSizeOverride("font_size", 18);
-        _sellValueLabel?.AddThemeColorOverride("font_color", new Color(0.98f, 0.88f, 0.64f));
-        _sellValueLabel?.AddThemeFontSizeOverride("font_size", 18);
-        _ledgerLabel?.AddThemeColorOverride("font_color", new Color(0.90f, 0.84f, 0.75f));
-        _ledgerLabel?.AddThemeFontSizeOverride("font_size", 16);
+        _sellPromptLabel?.AddThemeFontSizeOverride("font_size", 13);
+        _sellValueLabel?.AddThemeColorOverride("font_color", new Color(0.99f, 0.88f, 0.64f));
+        _sellValueLabel?.AddThemeFontSizeOverride("font_size", 14);
+        _ledgerLabel?.AddThemeColorOverride("font_color", new Color(0.88f, 0.82f, 0.74f));
+        _ledgerLabel?.AddThemeFontSizeOverride("font_size", 12);
 
         if (_stockpileBar is not null)
         {
@@ -231,12 +306,12 @@ public partial class TownUI : Control
             _sellSlider.AddThemeIconOverride("grabber_highlight", CreateSliderKnobTexture(new Color(0.98f, 0.89f, 0.66f)));
         }
 
-        ApplyButtonStyle(_stockpileUpgradeButton, false);
-        ApplyButtonStyle(_sellButton, true);
-        ApplyButtonStyle(_filterAllButton, false);
-        ApplyButtonStyle(_filterAvailableButton, false);
-        ApplyButtonStyle(_filterExistingButton, false);
-        ApplyButtonStyle(_closeButton, false);
+        ApplyButtonStyle(_stockpileUpgradeButton, false, new Vector2(154.0f, 30.0f), 12);
+        ApplyButtonStyle(_sellButton, true, new Vector2(0.0f, 36.0f), 17);
+        ApplyButtonStyle(_filterAllButton, false, new Vector2(0.0f, 26.0f), 12);
+        ApplyButtonStyle(_filterAvailableButton, false, new Vector2(0.0f, 26.0f), 12);
+        ApplyButtonStyle(_filterExistingButton, false, new Vector2(0.0f, 26.0f), 12);
+        ApplyButtonStyle(_closeButton, false, new Vector2(140.0f, 26.0f), 13);
     }
 
     private void UpdateFilterButtonState(TownBuildingFilter activeFilter)
@@ -253,47 +328,58 @@ public partial class TownUI : Control
             return;
         }
 
-        button.Modulate = active ? Colors.White : new Color(0.84f, 0.79f, 0.72f, 0.82f);
+        button.Modulate = active ? Colors.White : new Color(0.82f, 0.78f, 0.72f, 0.85f);
         button.Scale = active ? new Vector2(1.02f, 1.02f) : Vector2.One;
+    }
+
+    private static void ApplySmallHeadingStyle(Label label)
+    {
+        label.AddThemeColorOverride("font_color", new Color(0.94f, 0.80f, 0.47f));
+        label.AddThemeColorOverride("font_shadow_color", new Color(0.09f, 0.05f, 0.03f, 0.72f));
+        label.AddThemeConstantOverride("shadow_offset_x", 1);
+        label.AddThemeConstantOverride("shadow_offset_y", 1);
+        label.AddThemeFontSizeOverride("font_size", 15);
     }
 
     private static void ApplyResourceButtonStyle(Button button, bool selected)
     {
-        Color baseColor = selected ? new Color(0.74f, 0.63f, 0.43f, 0.96f) : new Color(0.24f, 0.18f, 0.12f, 0.82f);
-        Color borderColor = selected ? new Color(0.96f, 0.86f, 0.62f, 0.96f) : new Color(0.55f, 0.43f, 0.24f, 0.72f);
-        Color textColor = selected ? new Color(0.20f, 0.11f, 0.05f) : new Color(0.92f, 0.86f, 0.76f);
+        Color baseColor = selected ? new Color(0.76f, 0.63f, 0.42f, 0.94f) : new Color(0.30f, 0.21f, 0.14f, 0.82f);
+        Color borderColor = selected ? new Color(0.96f, 0.86f, 0.61f, 0.94f) : new Color(0.58f, 0.44f, 0.24f, 0.72f);
+        Color textColor = selected ? new Color(0.20f, 0.11f, 0.05f) : new Color(0.93f, 0.86f, 0.75f);
 
         button.AddThemeColorOverride("font_color", textColor);
         button.AddThemeColorOverride("font_hover_color", textColor);
         button.AddThemeColorOverride("font_pressed_color", textColor);
-        button.AddThemeStyleboxOverride("normal", CreateFancyPanelStyle(baseColor, borderColor, 12, 1));
-        button.AddThemeStyleboxOverride("hover", CreateFancyPanelStyle(baseColor.Lightened(0.08f), borderColor.Lightened(0.08f), 12, 1));
-        button.AddThemeStyleboxOverride("pressed", CreateFancyPanelStyle(baseColor.Darkened(0.08f), borderColor, 12, 1));
+        button.AddThemeFontSizeOverride("font_size", 15);
+        button.AddThemeStyleboxOverride("normal", CreateFancyPanelStyle(baseColor, borderColor, 10, 1, 5, 3));
+        button.AddThemeStyleboxOverride("hover", CreateFancyPanelStyle(baseColor.Lightened(0.06f), borderColor.Lightened(0.06f), 10, 1, 5, 3));
+        button.AddThemeStyleboxOverride("pressed", CreateFancyPanelStyle(baseColor.Darkened(0.08f), borderColor, 10, 1, 5, 3));
     }
 
-    private static void ApplyButtonStyle(Button? button, bool emphasized)
+    private static void ApplyButtonStyle(Button? button, bool emphasized, Vector2 minimumSize, int fontSize)
     {
         if (button is null)
         {
             return;
         }
 
-        Color baseColor = emphasized ? new Color(0.82f, 0.67f, 0.36f, 0.96f) : new Color(0.32f, 0.22f, 0.14f, 0.92f);
-        Color borderColor = emphasized ? new Color(0.98f, 0.88f, 0.62f, 0.96f) : new Color(0.64f, 0.50f, 0.28f, 0.84f);
+        Color baseColor = emphasized ? new Color(0.82f, 0.67f, 0.36f, 0.96f) : new Color(0.34f, 0.24f, 0.15f, 0.92f);
+        Color borderColor = emphasized ? new Color(0.98f, 0.88f, 0.62f, 0.96f) : new Color(0.63f, 0.49f, 0.28f, 0.84f);
         Color textColor = emphasized ? new Color(0.20f, 0.11f, 0.05f) : new Color(0.94f, 0.88f, 0.78f);
 
         button.AddThemeColorOverride("font_color", textColor);
         button.AddThemeColorOverride("font_hover_color", textColor);
         button.AddThemeColorOverride("font_pressed_color", textColor);
-        button.AddThemeColorOverride("font_disabled_color", new Color(0.55f, 0.51f, 0.48f));
-        button.AddThemeFontSizeOverride("font_size", emphasized ? 20 : 17);
-        button.AddThemeStyleboxOverride("normal", CreateFancyPanelStyle(baseColor, borderColor, 14, 1));
-        button.AddThemeStyleboxOverride("hover", CreateFancyPanelStyle(baseColor.Lightened(0.10f), borderColor.Lightened(0.10f), 14, 1));
-        button.AddThemeStyleboxOverride("pressed", CreateFancyPanelStyle(baseColor.Darkened(0.10f), borderColor, 14, 1));
-        button.AddThemeStyleboxOverride("disabled", CreateFancyPanelStyle(new Color(0.31f, 0.26f, 0.22f, 0.56f), new Color(0.42f, 0.37f, 0.32f, 0.40f), 14, 1));
+        button.AddThemeColorOverride("font_disabled_color", new Color(0.56f, 0.52f, 0.48f));
+        button.AddThemeFontSizeOverride("font_size", fontSize);
+        button.AddThemeStyleboxOverride("normal", CreateFancyPanelStyle(baseColor, borderColor, 12, 1, 6, 5));
+        button.AddThemeStyleboxOverride("hover", CreateFancyPanelStyle(baseColor.Lightened(0.10f), borderColor.Lightened(0.10f), 12, 1, 6, 5));
+        button.AddThemeStyleboxOverride("pressed", CreateFancyPanelStyle(baseColor.Darkened(0.10f), borderColor, 12, 1, 6, 5));
+        button.AddThemeStyleboxOverride("disabled", CreateFancyPanelStyle(new Color(0.31f, 0.26f, 0.22f, 0.56f), new Color(0.42f, 0.37f, 0.32f, 0.40f), 12, 1, 6, 5));
+        button.CustomMinimumSize = minimumSize;
     }
 
-    private static StyleBoxFlat CreateFancyPanelStyle(Color background, Color border, int radius, int borderWidth)
+    private static StyleBoxFlat CreateFancyPanelStyle(Color background, Color border, int radius, int borderWidth, int horizontalPadding, int verticalPadding)
     {
         return new StyleBoxFlat
         {
@@ -307,40 +393,56 @@ public partial class TownUI : Control
             CornerRadiusTopRight = radius,
             CornerRadiusBottomLeft = radius,
             CornerRadiusBottomRight = radius,
-            ShadowColor = new Color(0.08f, 0.05f, 0.03f, 0.22f),
-            ShadowSize = 8,
-            ShadowOffset = new Vector2(0.0f, 3.0f),
-            ContentMarginLeft = 10,
-            ContentMarginTop = 8,
-            ContentMarginRight = 10,
-            ContentMarginBottom = 8,
+            ShadowColor = new Color(0.08f, 0.05f, 0.03f, 0.18f),
+            ShadowSize = 7,
+            ShadowOffset = new Vector2(0.0f, 2.0f),
+            ContentMarginLeft = horizontalPadding,
+            ContentMarginTop = verticalPadding,
+            ContentMarginRight = horizontalPadding,
+            ContentMarginBottom = verticalPadding,
         };
     }
 
-    private static StyleBoxFlat CreateBarBackgroundStyle() => CreateFancyPanelStyle(new Color(0.17f, 0.12f, 0.08f, 0.90f), new Color(0.54f, 0.42f, 0.22f, 0.82f), 10, 1);
+    private static StyleBoxFlat CreateInsetStyle(Color background, Color border, int radius)
+    {
+        return CreateFancyPanelStyle(background, border, radius, 1, 6, 4);
+    }
 
-    private static StyleBoxFlat CreateBarFillStyle() => CreateFancyPanelStyle(new Color(0.21f, 0.58f, 0.36f, 0.98f), new Color(0.83f, 0.92f, 0.72f, 0.82f), 8, 1);
+    private static StyleBoxFlat CreateDividerStyle()
+    {
+        return new StyleBoxFlat
+        {
+            BgColor = new Color(0.59f, 0.44f, 0.23f, 0.42f),
+            BorderColor = new Color(0.80f, 0.66f, 0.36f, 0.20f),
+            BorderWidthLeft = 1,
+            BorderWidthRight = 1,
+        };
+    }
 
-    private static StyleBoxFlat CreateSliderTrackStyle() => CreateFancyPanelStyle(new Color(0.16f, 0.12f, 0.08f, 0.88f), new Color(0.48f, 0.36f, 0.18f, 0.82f), 8, 1);
+    private static StyleBoxFlat CreateBarBackgroundStyle() => CreateFancyPanelStyle(new Color(0.18f, 0.12f, 0.08f, 0.92f), new Color(0.56f, 0.43f, 0.24f, 0.82f), 10, 1, 4, 2);
 
-    private static StyleBoxFlat CreateSliderFillStyle() => CreateFancyPanelStyle(new Color(0.42f, 0.57f, 0.28f, 0.84f), new Color(0.82f, 0.91f, 0.64f, 0.82f), 8, 1);
+    private static StyleBoxFlat CreateBarFillStyle() => CreateFancyPanelStyle(new Color(0.22f, 0.60f, 0.37f, 0.98f), new Color(0.84f, 0.93f, 0.74f, 0.82f), 8, 1, 3, 1);
+
+    private static StyleBoxFlat CreateSliderTrackStyle() => CreateFancyPanelStyle(new Color(0.18f, 0.13f, 0.08f, 0.88f), new Color(0.49f, 0.37f, 0.19f, 0.82f), 8, 1, 3, 2);
+
+    private static StyleBoxFlat CreateSliderFillStyle() => CreateFancyPanelStyle(new Color(0.42f, 0.57f, 0.28f, 0.84f), new Color(0.82f, 0.91f, 0.64f, 0.82f), 8, 1, 3, 2);
 
     private static Texture2D CreateSliderKnobTexture(Color color)
     {
-        Image image = Image.CreateEmpty(18, 18, false, Image.Format.Rgba8);
+        Image image = Image.CreateEmpty(16, 16, false, Image.Format.Rgba8);
         image.Fill(Colors.Transparent);
-        Vector2 center = new(9.0f, 9.0f);
-        for (int y = 0; y < 18; y++)
+        Vector2 center = new(8.0f, 8.0f);
+        for (int y = 0; y < 16; y++)
         {
-            for (int x = 0; x < 18; x++)
+            for (int x = 0; x < 16; x++)
             {
                 Vector2 point = new(x + 0.5f, y + 0.5f);
                 float distance = point.DistanceTo(center);
-                if (distance <= 7.4f)
+                if (distance <= 6.4f)
                 {
                     image.SetPixel(x, y, color);
                 }
-                else if (distance <= 8.5f)
+                else if (distance <= 7.5f)
                 {
                     image.SetPixel(x, y, new Color(0.26f, 0.17f, 0.07f, 0.95f));
                 }
@@ -348,5 +450,43 @@ public partial class TownUI : Control
         }
 
         return ImageTexture.CreateFromImage(image);
+    }
+
+    private static string BuildResourceSignature(IReadOnlyList<TownResourceViewData> resources)
+    {
+        StringBuilder builder = new();
+        foreach (TownResourceViewData resource in resources)
+        {
+            builder.Append(resource.ItemId)
+                .Append(':')
+                .Append(resource.Amount)
+                .Append(':')
+                .Append(resource.Selected ? '1' : '0')
+                .Append('|');
+        }
+
+        return builder.ToString();
+    }
+
+    private static string BuildBuildingSignature(IReadOnlyList<BuildingCardViewData> buildings)
+    {
+        StringBuilder builder = new();
+        foreach (BuildingCardViewData building in buildings)
+        {
+            builder.Append(building.BuildingId)
+                .Append(':')
+                .Append(building.CurrentLevel)
+                .Append(':')
+                .Append(building.StatusText)
+                .Append(':')
+                .Append(building.CanAct ? '1' : '0')
+                .Append(':')
+                .Append(building.Progress.ToString("0.000"))
+                .Append(':')
+                .Append(string.Join(",", building.Costs.Select(cost => $"{cost.ItemId}-{cost.Amount}-{(cost.Affordable ? 1 : 0)}")))
+                .Append('|');
+        }
+
+        return builder.ToString();
     }
 }

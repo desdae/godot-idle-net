@@ -9,14 +9,13 @@ script = ExtResource("1_script")
 
 [node name="HBox" type="HBoxContainer" parent="."]
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 4
 
 [node name="IconLabel" type="Label" parent="HBox"]
-custom_minimum_size = Vector2(18, 0)
+custom_minimum_size = Vector2(14, 0)
 text = "*"
 
 [node name="NameLabel" type="Label" parent="HBox"]
-size_flags_horizontal = 3
 text = "Sticks"
 
 [node name="AmountLabel" type="Label" parent="HBox"]

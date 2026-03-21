@@ -2304,12 +2304,9 @@ public partial class InfiniteWorld : Node2D
 			Gold = _townState.Gold,
 			StockpileCurrent = _townState.GetStoredCountTotal(),
 			StockpileCapacity = _townState.StockpileCapacity,
-			StockpileSummary = $"Stockpile {_townState.GetStoredCountTotal()}/{_townState.StockpileCapacity}",
+			StockpileSummary = $"Stockpile {_townState.GetStoredCountTotal()}/{_townState.StockpileCapacity}   Lv.{_townState.StockpileLevel}",
 			StockpileUpgradeSummary =
-				$"Stockpile Lv.{_townState.StockpileLevel} -> Lv.{_townState.StockpileLevel + 1}\n" +
-				$"Capacity {_townState.StockpileCapacity} -> {GetNextStockpileCapacity()}\n" +
-				$"Cost: {GetStockpileUpgradeSticksCost()} sticks, {GetStockpileUpgradeStonesCost()} stones\n" +
-				$"Time: {GetStockpileUpgradeDurationSeconds():0}s while the worker stays in town",
+				$"Next: {GetNextStockpileCapacity()} cap   |   {GetStockpileUpgradeSticksCost()} sticks   |   {GetStockpileUpgradeStonesCost()} stones   |   {GetStockpileUpgradeDurationSeconds():0}s",
 			CanUpgradeStockpile = CanQueueStockpileUpgrade(),
 			Resources = resources,
 			SellPrompt = BuildSellPrompt(),
@@ -2319,12 +2316,7 @@ public partial class InfiniteWorld : Node2D
 			Buildings = buildings,
 			ActiveFilter = _activeBuildingFilter,
 			LedgerText =
-				$"Town center at (0, 0)\n\n" +
-				$"Stockpile level: Lv.{_townState.StockpileLevel}\n" +
-				$"Building skill: Lv.{_characterState.GetSkillLevel(GameCatalog.Building.Id)}\n\n" +
-				$"Town Hall Lv.1\n" +
-				$"Stockpile Lv.{_townState.StockpileLevel}\n" +
-				$"Campfire Lv.1",
+				$"Town Hall  •  Stockpile Lv.{_townState.StockpileLevel}  •  Campfire  •  Builder Lv.{_characterState.GetSkillLevel(GameCatalog.Building.Id)}",
 		};
 	}
 
@@ -2445,11 +2437,11 @@ public partial class InfiniteWorld : Node2D
 	{
 		if (_selectedSellItemId is null)
 		{
-			return "Select a resource to sell";
+			return "Select a resource";
 		}
 
 		ItemDefinition item = GameCatalog.GetItem(_selectedSellItemId);
-		return $"Select how much {item.DisplayName.ToLowerInvariant()} to sell";
+		return $"Sell {item.DisplayName.ToLowerInvariant()}";
 	}
 
 	private string BuildSellAmountText()
@@ -2463,7 +2455,7 @@ public partial class InfiniteWorld : Node2D
 		int stored = _townState.GetStoredCount(item.Id);
 		int amount = (stored * _selectedSellPercent) / 100;
 		int gold = amount * item.SellPriceCoins;
-		return $"{_selectedSellPercent}%  Sell {amount}  Gold {gold}";
+		return $"{_selectedSellPercent}%  •  {amount} goods  •  +{gold}g";
 	}
 
 	private bool CanSellSelectedResources()
