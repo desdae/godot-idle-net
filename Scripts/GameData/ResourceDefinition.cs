@@ -8,6 +8,12 @@ public sealed class ResourceDefinition
 
     public required string DisplayName { get; init; }
 
+    public string IconGlyph { get; init; } = "?";
+
+    public string CategoryTag { get; init; } = "RESOURCE";
+
+    public string PanelSubtitle { get; init; } = string.Empty;
+
     public required string GatherButtonText { get; init; }
 
     public required string GatherVerb { get; init; }

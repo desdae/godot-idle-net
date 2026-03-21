@@ -2,6 +2,9 @@
   {
 	"Id": "tree",
 	"DisplayName": "Tree",
+	"IconGlyph": "T",
+	"CategoryTag": "FOREST",
+	"PanelSubtitle": "Break kindling from a sturdy woodland stand.",
 	"GatherButtonText": "Gather sticks",
 	"GatherVerb": "Gathering sticks",
 	"ItemId": "sticks",
@@ -20,6 +23,9 @@
   {
 	"Id": "stone",
 	"DisplayName": "Stone",
+	"IconGlyph": "O",
+	"CategoryTag": "QUARRY",
+	"PanelSubtitle": "Chip workable stone from the earth below.",
 	"GatherButtonText": "Gather stones",
 	"GatherVerb": "Gathering stones",
 	"ItemId": "stones",
@@ -28,6 +34,9 @@
   {
 	"Id": "berries",
 	"DisplayName": "Berry Bush",
+	"IconGlyph": "*",
+	"CategoryTag": "FORAGE",
+	"PanelSubtitle": "Pick bright clusters for food and barter.",
 	"GatherButtonText": "Harvest berries",
 	"GatherVerb": "Harvesting berries",
 	"ItemId": "berries",

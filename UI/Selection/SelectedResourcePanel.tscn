@@ -1,0 +1,125 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/Selection/SelectedResourcePanel.cs" id="1_script"]
+[ext_resource type="PackedScene" path="res://UI/Selection/SelectionStatChip.tscn" id="2_chip"]
+[ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="3_theme"]
+
+[node name="SelectedResourcePanel" type="PanelContainer"]
+visible = false
+theme = ExtResource("3_theme")
+script = ExtResource("1_script")
+StatChipScene = ExtResource("2_chip")
+
+[node name="OuterMargin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="RootColumn" type="VBoxContainer" parent="OuterMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="HeaderRow" type="HBoxContainer" parent="OuterMargin/RootColumn"]
+theme_override_constants/separation = 8
+
+[node name="IconMedallion" type="PanelContainer" parent="OuterMargin/RootColumn/HeaderRow"]
+custom_minimum_size = Vector2(56, 56)
+
+[node name="IconLabel" type="Label" parent="OuterMargin/RootColumn/HeaderRow/IconMedallion"]
+layout_mode = 0
+offset_right = 56.0
+offset_bottom = 56.0
+text = "T"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="HeaderText" type="VBoxContainer" parent="OuterMargin/RootColumn/HeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="TitleRow" type="HBoxContainer" parent="OuterMargin/RootColumn/HeaderRow/HeaderText"]
+theme_override_constants/separation = 6
+
+[node name="TitleLabel" type="Label" parent="OuterMargin/RootColumn/HeaderRow/HeaderText/TitleRow"]
+size_flags_horizontal = 3
+text = "Tree"
+vertical_alignment = 1
+
+[node name="TagPanel" type="PanelContainer" parent="OuterMargin/RootColumn/HeaderRow/HeaderText/TitleRow"]
+custom_minimum_size = Vector2(74, 22)
+
+[node name="TagLabel" type="Label" parent="OuterMargin/RootColumn/HeaderRow/HeaderText/TitleRow/TagPanel"]
+layout_mode = 0
+offset_right = 74.0
+offset_bottom = 22.0
+text = "FOREST"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SubtitleLabel" type="Label" parent="OuterMargin/RootColumn/HeaderRow/HeaderText"]
+autowrap_mode = 2
+text = "Break kindling from a sturdy woodland stand."
+
+[node name="HeaderDivider" type="PanelContainer" parent="OuterMargin/RootColumn"]
+custom_minimum_size = Vector2(0, 2)
+
+[node name="StatsGrid" type="GridContainer" parent="OuterMargin/RootColumn"]
+columns = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+
+[node name="ProgressionPanel" type="PanelContainer" parent="OuterMargin/RootColumn"]
+
+[node name="ProgressionMargin" type="MarginContainer" parent="OuterMargin/RootColumn/ProgressionPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 4
+
+[node name="ProgressionRow" type="HBoxContainer" parent="OuterMargin/RootColumn/ProgressionPanel/ProgressionMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ProgressionIcon" type="Label" parent="OuterMargin/RootColumn/ProgressionPanel/ProgressionMargin/ProgressionRow"]
+text = "+"
+
+[node name="ProgressionLabel" type="Label" parent="OuterMargin/RootColumn/ProgressionPanel/ProgressionMargin/ProgressionRow"]
+size_flags_horizontal = 3
+clip_text = true
+text = "Logs unlock at Woodcutting Lv.10."
+vertical_alignment = 1
+
+[node name="ActionNotePanel" type="PanelContainer" parent="OuterMargin/RootColumn"]
+
+[node name="ActionNoteMargin" type="MarginContainer" parent="OuterMargin/RootColumn/ActionNotePanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 4
+
+[node name="ActionNoteLabel" type="Label" parent="OuterMargin/RootColumn/ActionNotePanel/ActionNoteMargin"]
+layout_mode = 2
+clip_text = true
+text = "Yield: sticks, sells for 1g each."
+
+[node name="ActionButtons" type="VBoxContainer" parent="OuterMargin/RootColumn"]
+theme_override_constants/separation = 5
+
+[node name="PrimaryButton" type="Button" parent="OuterMargin/RootColumn/ActionButtons"]
+custom_minimum_size = Vector2(0, 40)
+text = "Gather sticks x10"
+
+[node name="SecondaryButton" type="Button" parent="OuterMargin/RootColumn/ActionButtons"]
+visible = false
+custom_minimum_size = Vector2(0, 30)
+text = "Cut logs (Lv.10)"
+
+[node name="CancelButton" type="Button" parent="OuterMargin/RootColumn/ActionButtons"]
+visible = false
+custom_minimum_size = Vector2(0, 24)
+text = "Clear Queue"

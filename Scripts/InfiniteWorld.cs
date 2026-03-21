@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using Godot;
 
@@ -49,12 +50,7 @@ public partial class InfiniteWorld : Node2D
 	private Label? _coordsLabel;
 	private Label? _statusLabel;
 	private Label? _hintLabel;
-	private PanelContainer? _actionPanel;
-	private Label? _actionTitle;
-	private Label? _actionBody;
-	private Button? _actionButton;
-	private Button? _secondaryActionButton;
-	private Button? _cancelButton;
+	private SelectedResourcePanel? _selectedResourcePanel;
 	private Button? _queueToggleButton;
 	private PanelContainer? _queuePanel;
 	private Label? _queueSummaryLabel;
@@ -279,6 +275,48 @@ public partial class InfiniteWorld : Node2D
 		return _townUi?.Visible == true;
 	}
 
+	public bool OpenSelectionPanelForCell(Vector2I cell)
+	{
+		_selectedCell = cell;
+
+		if (cell == TownCell)
+		{
+			HideActionPanel();
+			HideCharacterPanel();
+			ShowTownPanel();
+			return true;
+		}
+
+		if (!IsExplored(cell))
+		{
+			if (!CanQueueExploreCell(cell))
+			{
+				return false;
+			}
+
+			HideTownPanel();
+			HideCharacterPanel();
+			ShowExploreActionPanel(cell);
+			return true;
+		}
+
+		string? resourceId = GetResourceId(cell);
+		if (resourceId is null)
+		{
+			return false;
+		}
+
+		HideTownPanel();
+		HideCharacterPanel();
+		ShowActionPanel(cell, GameCatalog.GetResource(resourceId));
+		return true;
+	}
+
+	public bool IsSelectionPanelOpen()
+	{
+		return _selectedResourcePanel?.Visible == true;
+	}
+
 	private void CreateHudPanels()
 	{
 		CanvasLayer hud = GetNode<CanvasLayer>("Hud");
@@ -297,40 +335,17 @@ public partial class InfiniteWorld : Node2D
 		_statusLabel.AddThemeConstantOverride("shadow_offset_y", 2);
 		hud.AddChild(_statusLabel);
 
-		_actionPanel = new PanelContainer
-		{
-			Visible = false,
-			OffsetLeft = 16.0f,
-			OffsetTop = 100.0f,
-			OffsetRight = 360.0f,
-			OffsetBottom = 300.0f,
-		};
-
-		VBoxContainer actionBox = new();
-		actionBox.AddThemeConstantOverride("separation", 10);
-		actionBox.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-		actionBox.OffsetLeft = 14.0f;
-		actionBox.OffsetTop = 14.0f;
-		actionBox.OffsetRight = -14.0f;
-		actionBox.OffsetBottom = -14.0f;
-
-		_actionTitle = new Label { Text = "Resource" };
-		_actionBody = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
-		_actionButton = new Button { Text = "Add To Queue" };
-		_secondaryActionButton = new Button { Text = "Second Action", Visible = false };
-		_cancelButton = new Button { Text = "Clear Queue" };
-
-		_actionButton.Pressed += OnActionButtonPressed;
-		_secondaryActionButton.Pressed += OnSecondaryActionButtonPressed;
-		_cancelButton.Pressed += ClearGatherCommand;
-
-		actionBox.AddChild(_actionTitle);
-		actionBox.AddChild(_actionBody);
-		actionBox.AddChild(_actionButton);
-		actionBox.AddChild(_secondaryActionButton);
-		actionBox.AddChild(_cancelButton);
-		_actionPanel.AddChild(actionBox);
-		hud.AddChild(_actionPanel);
+		PackedScene selectionPanelScene = ResourceLoader.Load<PackedScene>("res://UI/Selection/SelectedResourcePanel.tscn");
+		_selectedResourcePanel = selectionPanelScene.Instantiate<SelectedResourcePanel>();
+		_selectedResourcePanel.Visible = false;
+		_selectedResourcePanel.OffsetLeft = 16.0f;
+		_selectedResourcePanel.OffsetTop = 144.0f;
+		_selectedResourcePanel.OffsetRight = 388.0f;
+		_selectedResourcePanel.OffsetBottom = 408.0f;
+		_selectedResourcePanel.PrimaryActionRequested += OnActionButtonPressed;
+		_selectedResourcePanel.SecondaryActionRequested += OnSecondaryActionButtonPressed;
+		_selectedResourcePanel.CancelRequested += ClearGatherCommand;
+		hud.AddChild(_selectedResourcePanel);
 
 		_queueToggleButton = new Button
 		{
@@ -2129,7 +2144,7 @@ public partial class InfiniteWorld : Node2D
 
 	private void ShowActionPanel(Vector2I cell, ResourceDefinition resource)
 	{
-		if (_actionPanel is null || _actionTitle is null || _actionBody is null || _actionButton is null || _secondaryActionButton is null)
+		if (_selectedResourcePanel is null)
 		{
 			return;
 		}
@@ -2140,14 +2155,67 @@ public partial class InfiniteWorld : Node2D
 		List<ResourceActionDefinition> actions = GetResourceActions(resource);
 		ResourceActionDefinition primaryAction = actions[0];
 		SkillDefinition skill = GameCatalog.GetSkill(primaryAction.SkillId);
-		_actionTitle.Text = $"{resource.DisplayName} at ({cell.X}, {cell.Y})";
-		StringBuilder bodyBuilder = new();
-		bodyBuilder.AppendLine($"{primaryAction.Verb} here to gain {skill.DisplayName}.");
-		bodyBuilder.AppendLine($"Queue batch: {Rules.DefaultQueuedGatherAmount}");
-		bodyBuilder.AppendLine($"Move time: {GetCurrentStepDurationSeconds():0.00}s per tile");
-		bodyBuilder.AppendLine($"Gather time: {Rules.GatherDurationSeconds:0.0}s each");
-		bodyBuilder.AppendLine($"Bag: {_characterState.GetBagCount()}/{_characterState.BagCapacity}");
-		bodyBuilder.AppendLine($"Current {skill.DisplayName} level: {_characterState.GetSkillLevel(skill.Id)}");
+		_actionPrimaryResourceActionId = primaryAction.Id;
+		_actionSecondaryResourceActionId = actions.Count > 1 ? actions[1].Id : null;
+
+		ItemDefinition item = GameCatalog.GetItem(primaryAction.ItemId);
+		Color accent = skill.IconColor;
+		System.Collections.Generic.List<SelectionStatChipViewData> stats = new()
+		{
+			new()
+			{
+				IconGlyph = "Q",
+				Label = "Queue",
+				Value = $"x{Rules.DefaultQueuedGatherAmount}",
+				TooltipText = $"One click adds {Rules.DefaultQueuedGatherAmount} runs to the action queue.",
+				AccentColor = accent,
+			},
+			new()
+			{
+				IconGlyph = GameCatalog.Running.IconGlyph,
+				Label = "Stride",
+				Value = FormatFixedSeconds(GetCurrentStepDurationSeconds(), 2),
+				TooltipText = "Current travel time for one tile step.",
+				AccentColor = GameCatalog.Running.IconColor,
+			},
+			new()
+			{
+				IconGlyph = "T",
+				Label = "Gather",
+				Value = FormatFixedSeconds(Rules.GatherDurationSeconds, 1),
+				TooltipText = "Time needed to complete each gather action.",
+				AccentColor = new Color(0.91f, 0.77f, 0.42f),
+			},
+			new()
+			{
+				IconGlyph = "B",
+				Label = "Bag",
+				Value = $"{_characterState.GetBagCount()}/{_characterState.BagCapacity}",
+				TooltipText = "Current carried load and total bag capacity.",
+				AccentColor = new Color(0.82f, 0.64f, 0.38f),
+			},
+			new()
+			{
+				IconGlyph = skill.IconGlyph,
+				Label = skill.DisplayName,
+				Value = $"Lv.{_characterState.GetSkillLevel(skill.Id)}",
+				TooltipText = $"{skill.DisplayName} level grows while this work is performed.",
+				AccentColor = accent,
+			},
+			new()
+			{
+				IconGlyph = GetItemGlyph(item.Id),
+				Label = "Value",
+				Value = $"{item.SellPriceCoins}g each",
+				TooltipText = $"{item.DisplayName} currently sells for {item.SellPriceCoins} gold each in town.",
+				AccentColor = new Color(0.97f, 0.84f, 0.47f),
+			},
+		};
+
+		string progressionText = $"{skill.DisplayName} rises with each run of {primaryAction.ButtonText.ToLowerInvariant()}.";
+		string progressionTooltip = $"{primaryAction.Verb} here trains {skill.DisplayName}.";
+		bool emphasizeProgression = false;
+		SelectedResourcePanelActionViewData secondaryActionViewData = new() { Visible = false };
 
 		if (actions.Count > 1)
 		{
@@ -2155,36 +2223,57 @@ public partial class InfiniteWorld : Node2D
 			SkillDefinition secondarySkill = GameCatalog.GetSkill(secondaryAction.SkillId);
 			ItemDefinition secondaryItem = GameCatalog.GetItem(secondaryAction.ItemId);
 			bool unlocked = IsResourceActionUnlocked(secondaryAction);
-			bodyBuilder.AppendLine();
-			bodyBuilder.AppendLine(unlocked
-				? $"{secondaryAction.ButtonText} unlocks {secondaryItem.DisplayName} and uses {secondarySkill.DisplayName}."
-				: $"{secondaryAction.ButtonText} unlocks at {secondarySkill.DisplayName} Lv.{secondaryAction.MinSkillLevel}.");
-			_actionSecondaryResourceActionId = secondaryAction.Id;
-			_secondaryActionButton.Text = unlocked
-				? $"{secondaryAction.ButtonText} x{Rules.DefaultQueuedGatherAmount}"
-				: $"{secondaryAction.ButtonText} (Lv.{secondaryAction.MinSkillLevel})";
-			_secondaryActionButton.Disabled = !unlocked;
-			_secondaryActionButton.Visible = true;
-		}
-		else
-		{
-			_actionSecondaryResourceActionId = null;
-			_secondaryActionButton.Visible = false;
-			_secondaryActionButton.Disabled = true;
+			progressionText = unlocked
+				? $"{secondaryItem.DisplayName} ready. {secondaryAction.ButtonText} now yields {secondaryItem.SellPriceCoins}g goods."
+				: $"{secondaryItem.DisplayName} unlock at {secondarySkill.DisplayName} Lv.{secondaryAction.MinSkillLevel}.";
+			progressionTooltip = unlocked
+				? $"{secondaryAction.ButtonText} is available and will gather {secondaryItem.DisplayName.ToLowerInvariant()}."
+				: $"{secondaryAction.ButtonText} becomes available once {secondarySkill.DisplayName} reaches level {secondaryAction.MinSkillLevel}.";
+			emphasizeProgression = unlocked;
+			secondaryActionViewData = new SelectedResourcePanelActionViewData
+			{
+				Visible = true,
+				Enabled = unlocked,
+				Text = unlocked
+					? $"{secondaryAction.ButtonText} x{Rules.DefaultQueuedGatherAmount}"
+					: $"{secondaryAction.ButtonText} (Lv.{secondaryAction.MinSkillLevel})",
+				TooltipText = unlocked
+					? $"Queue {Rules.DefaultQueuedGatherAmount} runs of {secondaryAction.ButtonText.ToLowerInvariant()} at ({cell.X}, {cell.Y})."
+					: $"{secondaryAction.ButtonText} needs {secondarySkill.DisplayName} level {secondaryAction.MinSkillLevel}.",
+			};
 		}
 
-		_actionBody.Text = bodyBuilder.ToString().TrimEnd();
-		_actionPrimaryResourceActionId = primaryAction.Id;
-		_actionButton.Text = $"{primaryAction.ButtonText} x{Rules.DefaultQueuedGatherAmount}";
-		_actionButton.Disabled = false;
-		_actionPanel.Visible = true;
+		_selectedResourcePanel.SetData(new SelectedResourcePanelViewData
+		{
+			Title = resource.DisplayName,
+			Subtitle = string.IsNullOrWhiteSpace(resource.PanelSubtitle)
+				? $"{primaryAction.Verb} here to deepen {skill.DisplayName}."
+				: resource.PanelSubtitle,
+			TagText = resource.CategoryTag,
+			ShowTag = !string.IsNullOrWhiteSpace(resource.CategoryTag),
+			IconGlyph = resource.IconGlyph,
+			AccentColor = accent,
+			Stats = stats,
+			ProgressionText = progressionText,
+			ProgressionTooltipText = progressionTooltip,
+			EmphasizeProgression = emphasizeProgression,
+			ActionNoteText = $"Yield: {item.DisplayName}  •  {item.SellPriceCoins}g each in town.",
+			ShowCancelAction = HasQueuedOrActiveWork(),
+			PrimaryAction = new SelectedResourcePanelActionViewData
+			{
+				Text = $"{primaryAction.ButtonText} x{Rules.DefaultQueuedGatherAmount}",
+				Enabled = true,
+				TooltipText = $"Queue {Rules.DefaultQueuedGatherAmount} runs of {primaryAction.ButtonText.ToLowerInvariant()} at ({cell.X}, {cell.Y}).",
+			},
+			SecondaryAction = secondaryActionViewData,
+		});
 
 		UpdateStatus($"Resource selected at ({cell.X}, {cell.Y}).");
 	}
 
 	private void ShowExploreActionPanel(Vector2I cell)
 	{
-		if (_actionPanel is null || _actionTitle is null || _actionBody is null || _actionButton is null || _secondaryActionButton is null)
+		if (_selectedResourcePanel is null)
 		{
 			return;
 		}
@@ -2199,21 +2288,82 @@ public partial class InfiniteWorld : Node2D
 		int availableRequirement = _townState.GetStoredCount(requirementItem.Id);
 		int projectedRequirement = GetProjectedTownItemCount(requirementItem.Id);
 		int missingRequirement = System.Math.Max(0, Rules.ExploreRequirementAmount - projectedRequirement);
-		int exploringLevel = _characterState.GetSkillLevel(GameCatalog.Exploring.Id);
+		SkillDefinition exploringSkill = GameCatalog.Exploring;
 
-		_actionTitle.Text = $"Frontier Tile ({cell.X}, {cell.Y})";
-		_actionBody.Text =
-			$"Queue exploration for this hidden tile.\n" +
-			$"Cost: {Rules.ExploreRequirementAmount} {requirementItem.DisplayName.ToLowerInvariant()} from town storage\n" +
-			$"Time: {GetCurrentExploreDurationSeconds():0.0}s\n" +
-			$"Move time: {GetCurrentStepDurationSeconds():0.00}s per tile\n" +
-			$"Town {requirementItem.DisplayName.ToLowerInvariant()}: {availableRequirement}\n" +
-			$"Auto-queued if missing: {missingRequirement}\n" +
-			$"Exploring level: {exploringLevel}  XP rate: {Rules.ExploringXpPerSecond:0}/s";
-		_actionButton.Text = "Queue Explore";
-		_actionButton.Disabled = false;
-		_secondaryActionButton.Visible = false;
-		_actionPanel.Visible = true;
+		_selectedResourcePanel.SetData(new SelectedResourcePanelViewData
+		{
+			Title = "Frontier Tile",
+			Subtitle = "Survey the edge of the wild and reveal fresh ground for the town.",
+			TagText = "FRONTIER",
+			IconGlyph = exploringSkill.IconGlyph,
+			AccentColor = exploringSkill.IconColor,
+			Stats = new System.Collections.Generic.List<SelectionStatChipViewData>
+			{
+				new()
+				{
+					IconGlyph = GetItemGlyph(requirementItem.Id),
+					Label = "Cost",
+					Value = $"{Rules.ExploreRequirementAmount} {requirementItem.DisplayName}",
+					TooltipText = $"Exploration spends {Rules.ExploreRequirementAmount} {requirementItem.DisplayName.ToLowerInvariant()} from town storage.",
+					AccentColor = GameCatalog.Foraging.IconColor,
+				},
+				new()
+				{
+					IconGlyph = GameCatalog.Running.IconGlyph,
+					Label = "March",
+					Value = FormatFixedSeconds(GetCurrentStepDurationSeconds(), 2),
+					TooltipText = "Current travel time for each step toward the frontier.",
+					AccentColor = GameCatalog.Running.IconColor,
+				},
+				new()
+				{
+					IconGlyph = "E",
+					Label = "Survey",
+					Value = FormatDuration(GetCurrentExploreDurationSeconds()),
+					TooltipText = "Time needed to chart and reveal this tile.",
+					AccentColor = exploringSkill.IconColor,
+				},
+				new()
+				{
+					IconGlyph = GetItemGlyph(requirementItem.Id),
+					Label = "Town",
+					Value = availableRequirement.ToString(),
+					TooltipText = $"{requirementItem.DisplayName} currently stored in town.",
+					AccentColor = GameCatalog.Foraging.IconColor,
+				},
+				new()
+				{
+					IconGlyph = exploringSkill.IconGlyph,
+					Label = exploringSkill.DisplayName,
+					Value = $"Lv.{_characterState.GetSkillLevel(exploringSkill.Id)}",
+					TooltipText = "Exploring gains experience while time is spent surveying.",
+					AccentColor = exploringSkill.IconColor,
+				},
+				new()
+				{
+					IconGlyph = "Q",
+					Label = "Missing",
+					Value = missingRequirement > 0 ? missingRequirement.ToString() : "Ready",
+					TooltipText = missingRequirement > 0
+						? $"{missingRequirement} more {requirementItem.DisplayName.ToLowerInvariant()} will be queued automatically first."
+						: "Town stores already cover the exploration cost.",
+					AccentColor = missingRequirement > 0 ? GameCatalog.Foraging.IconColor : exploringSkill.IconColor,
+				},
+			},
+			ProgressionText = missingRequirement > 0
+				? $"Missing {requirementItem.DisplayName.ToLowerInvariant()} will be gathered first, then the survey begins."
+				: "Town stockpile is ready. Queue the survey whenever you wish.",
+			ProgressionTooltipText = "Exploring gains 1 XP per second and trims explore time multiplicatively as it levels.",
+			EmphasizeProgression = missingRequirement > 0,
+			ActionNoteText = $"Surveying grants {Rules.ExploringXpPerSecond:0} XP per second and spends town stores.",
+			ShowCancelAction = HasQueuedOrActiveWork(),
+			PrimaryAction = new SelectedResourcePanelActionViewData
+			{
+				Text = "Queue Explore",
+				Enabled = true,
+				TooltipText = $"Queue exploration for tile ({cell.X}, {cell.Y}).",
+			},
+		});
 
 		UpdateStatus($"Frontier tile selected at ({cell.X}, {cell.Y}).");
 	}
@@ -2222,10 +2372,21 @@ public partial class InfiniteWorld : Node2D
 	{
 		_actionPrimaryResourceActionId = null;
 		_actionSecondaryResourceActionId = null;
-		if (_actionPanel is not null)
+		if (_selectedResourcePanel is not null)
 		{
-			_actionPanel.Visible = false;
+			_selectedResourcePanel.HidePanel();
 		}
+	}
+
+	private bool HasQueuedOrActiveWork()
+	{
+		return _activeGatherCommand is not null || _queuedCommands.Count > 0;
+	}
+
+	private static string FormatFixedSeconds(double seconds, int decimals)
+	{
+		string format = decimals <= 1 ? "0.0" : "0.00";
+		return $"{seconds.ToString(format, CultureInfo.InvariantCulture)}s";
 	}
 
 	private void ShowTownPanel()

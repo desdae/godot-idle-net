@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bk8k6qvthc4th" load_steps=4]
 
 [ext_resource type="Script" uid="uid://iiwght52ddqe" path="res://Scripts/InfiniteWorld.cs" id="1_3em4h"]
-[ext_resource type="Script" uid="uid://basknbfh32wr" path="res://Scripts/PlayerController.cs" id="2_n75fb"]
+[ext_resource type="Script" path="res://Scripts/PlayerController.cs" id="2_n75fb"]
 [ext_resource type="PackedScene" path="res://UI/TownUI/TownUI.tscn" id="3_townui"]
 
 [node name="Main" type="Node2D" unique_id=1347176332]

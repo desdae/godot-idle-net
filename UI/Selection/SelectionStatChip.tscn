@@ -1,0 +1,43 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/Selection/SelectionStatChip.cs" id="1_script"]
+[ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="2_theme"]
+
+[node name="SelectionStatChip" type="PanelContainer"]
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 42)
+
+[node name="InnerMargin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 5
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 5
+theme_override_constants/margin_bottom = 4
+
+[node name="Row" type="HBoxContainer" parent="InnerMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="IconFrame" type="PanelContainer" parent="InnerMargin/Row"]
+custom_minimum_size = Vector2(24, 24)
+
+[node name="IconLabel" type="Label" parent="InnerMargin/Row/IconFrame"]
+layout_mode = 0
+offset_right = 24.0
+offset_bottom = 24.0
+text = "Q"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Copy" type="VBoxContainer" parent="InnerMargin/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 0
+
+[node name="LabelText" type="Label" parent="InnerMargin/Row/Copy"]
+text = "Queue"
+
+[node name="ValueText" type="Label" parent="InnerMargin/Row/Copy"]
+text = "x10"
