@@ -96,6 +96,13 @@ public sealed class TownState
         return true;
     }
 
+    public int TakeStored(string itemId, int amount)
+    {
+        int moved = System.Math.Min(amount, _storedCounts[itemId]);
+        _storedCounts[itemId] -= moved;
+        return moved;
+    }
+
     public int PreviewNextStockpileCapacity(double multiplier, int roundTo)
     {
         double scaledCapacity = StockpileCapacity * multiplier;

@@ -12,11 +12,13 @@ public sealed class GameRulesDefinition
 
     public double ExploreDurationSeconds { get; init; }
 
-    public int ExploreBerryCost { get; init; }
+    public int ExploreRequirementMinResourceTypes { get; init; } = 1;
 
-    public string ExploreRequirementItemId { get; init; } = "berries";
+    public int ExploreRequirementMaxResourceTypes { get; init; } = 2;
 
-    public int ExploreRequirementAmount { get; init; } = 50;
+    public int ExploreRequirementMinAmount { get; init; } = 10;
+
+    public int ExploreRequirementMaxAmount { get; init; } = 40;
 
     public int BagCapacity { get; init; }
 

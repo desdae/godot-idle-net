@@ -46,6 +46,7 @@ public partial class InfiniteWorld : Node2D
 	private readonly TownState _townState = new(GameCatalog.Items, GameCatalog.Buildings, GameCatalog.Rules.StockpileCapacity);
 	private readonly CharacterState _characterState = new(GameCatalog.Items, GameCatalog.Skills, GameCatalog.Rules.BagCapacity);
 	private readonly HashSet<Vector2I> _exploredCells = new();
+	private readonly Dictionary<Vector2I, FrontierTileState> _frontierTileStates = new();
 
 	private PlayerController? _player;
 	private Label? _coordsLabel;
@@ -69,7 +70,6 @@ public partial class InfiniteWorld : Node2D
 	private WorkKind _actionWorkKind = WorkKind.Gather;
 	private GatherCommand? _activeGatherCommand;
 	private readonly List<GatherCommand> _queuedCommands = new();
-	private bool _activeExploreRequirementPaid;
 	private bool _activeTownUpgradePaid;
 	private bool _queuePanelDirty = true;
 	private double _queueSummaryRefreshSeconds;
@@ -304,6 +304,73 @@ public partial class InfiniteWorld : Node2D
 	public bool IsSelectionPanelOpen()
 	{
 		return _selectedResourcePanel?.Visible == true;
+	}
+
+	public string QueueExploreForCell(Vector2I cell)
+	{
+		if (!QueueExploreCommandWithRequirements(cell, false, out _, out string statusMessage))
+		{
+			return statusMessage;
+		}
+
+		UpdateTownPanel();
+		UpdateQueuePanel();
+		RefreshActionPanel();
+		return statusMessage;
+	}
+
+	public Godot.Collections.Dictionary GetFrontierDebugState(Vector2I cell)
+	{
+		FrontierTileState? frontierState = null;
+		bool hasExistingState = _frontierTileStates.TryGetValue(cell, out frontierState);
+		if (!hasExistingState && IsFrontierCell(cell))
+		{
+			frontierState = EnsureFrontierTileState(cell);
+			hasExistingState = true;
+		}
+
+		Godot.Collections.Array<Godot.Collections.Dictionary> requirements = new();
+		if (frontierState is not null)
+		{
+			foreach (KeyValuePair<string, int> requirement in frontierState.RequiredAmounts.OrderBy(pair => GameCatalog.GetItem(pair.Key).DisplayName))
+			{
+				requirements.Add(new Godot.Collections.Dictionary
+				{
+					["item_id"] = requirement.Key,
+					["required"] = requirement.Value,
+					["staged"] = frontierState.GetStagedAmount(requirement.Key),
+					["missing"] = frontierState.GetMissingAmount(requirement.Key),
+				});
+			}
+		}
+
+		return new Godot.Collections.Dictionary
+		{
+			["cell_x"] = cell.X,
+			["cell_y"] = cell.Y,
+			["is_frontier"] = IsFrontierCell(cell),
+			["has_requirements"] = frontierState?.HasRequirements() ?? false,
+			["requirements_generated"] = frontierState?.RequirementsGenerated ?? false,
+			["status"] = frontierState is null ? (IsExplored(cell) ? "Explored" : "Unknown") : GetFrontierSelectionStatus(cell, frontierState),
+			["requirements"] = requirements,
+			["has_state"] = hasExistingState,
+		};
+	}
+
+	public Godot.Collections.Array<Godot.Collections.Dictionary> GetQueuedCommandDebugData()
+	{
+		Godot.Collections.Array<Godot.Collections.Dictionary> rows = new();
+		if (_activeGatherCommand is not null)
+		{
+			rows.Add(BuildCommandDebugRow(_activeGatherCommand, true));
+		}
+
+		foreach (GatherCommand command in _queuedCommands)
+		{
+			rows.Add(BuildCommandDebugRow(command, false));
+		}
+
+		return rows;
 	}
 
 	private void CreateHudPanels()
@@ -619,6 +686,12 @@ public partial class InfiniteWorld : Node2D
 			return;
 		}
 
+		if (_activeGatherCommand.Kind == WorkKind.DeliverExploreMaterials)
+		{
+			ProcessExploreDeliveryCommand(delta);
+			return;
+		}
+
 		if (_activeGatherCommand.Kind == WorkKind.TownUpgrade)
 		{
 			ProcessTownUpgradeCommand(delta);
@@ -722,6 +795,20 @@ public partial class InfiniteWorld : Node2D
 			return;
 		}
 
+		FrontierTileState frontierState = EnsureFrontierTileState(_activeGatherCommand.Cell);
+		if (!frontierState.HasRequirements())
+		{
+			CompleteCurrentCommand($"Tile ({_activeGatherCommand.Cell.X}, {_activeGatherCommand.Cell.Y}) has no farmable exploration supplies yet.");
+			RefreshActionPanel();
+			return;
+		}
+
+		if (!frontierState.IsReadyToExplore())
+		{
+			RequeueExploreCommandForRequirements(_activeGatherCommand);
+			return;
+		}
+
 		if (_player.IsMoving)
 		{
 			_workerPhase = WorkerPhase.TravelingToResource;
@@ -738,19 +825,6 @@ public partial class InfiniteWorld : Node2D
 			return;
 		}
 
-		if (!_activeExploreRequirementPaid)
-		{
-			ItemDefinition requirementItem = GameCatalog.GetItem(Rules.ExploreRequirementItemId);
-			if (!_townState.TryConsumeStored(requirementItem.Id, Rules.ExploreRequirementAmount))
-			{
-				RequeueExploreCommandForRequirements(_activeGatherCommand);
-				return;
-			}
-
-			_activeExploreRequirementPaid = true;
-			UpdateTownPanel();
-		}
-
 		_workerPhase = WorkerPhase.Gathering;
 		UpdateExploringSkill(delta);
 		_gatherProgressSeconds += delta;
@@ -765,6 +839,104 @@ public partial class InfiniteWorld : Node2D
 
 		_gatherProgressSeconds -= exploreDuration;
 		CompleteExploreCycle(_activeGatherCommand.Cell);
+	}
+
+	private void ProcessExploreDeliveryCommand(double delta)
+	{
+		if (_player is null || _activeGatherCommand is null || string.IsNullOrEmpty(_activeGatherCommand.ItemId))
+		{
+			return;
+		}
+
+		string itemId = _activeGatherCommand.ItemId;
+		FrontierTileState frontierState = EnsureFrontierTileState(_activeGatherCommand.Cell);
+		if (!frontierState.HasRequirements())
+		{
+			CompleteCurrentCommand($"Stopped delivery for ({_activeGatherCommand.Cell.X}, {_activeGatherCommand.Cell.Y}). No farmable materials are available yet.");
+			RefreshActionPanel();
+			return;
+		}
+
+		int remainingNeeded = System.Math.Max(0, frontierState.GetMissingAmount(itemId));
+		_activeGatherCommand.RemainingAmount = remainingNeeded;
+		if (remainingNeeded <= 0)
+		{
+			CompleteCurrentCommand($"Materials already staged for tile ({_activeGatherCommand.Cell.X}, {_activeGatherCommand.Cell.Y}).");
+			RefreshActionPanel();
+			return;
+		}
+
+		int carriedAmount = _characterState.GetBagCount(itemId);
+		if (carriedAmount > 0)
+		{
+			if (_player.IsMoving)
+			{
+				_workerPhase = WorkerPhase.TravelingToResource;
+				UpdateStatus($"Delivering {GameCatalog.GetItem(itemId).DisplayName.ToLowerInvariant()} to {_activeGatherCommand.Cell.X}, {_activeGatherCommand.Cell.Y}...");
+				return;
+			}
+
+			if (_player.CurrentCell != _activeGatherCommand.Cell)
+			{
+				Vector2I nextCell = GetNextStep(_player.CurrentCell, _activeGatherCommand.Cell);
+				_player.BeginStep(nextCell, GetCurrentStepDurationSeconds());
+				_workerPhase = WorkerPhase.TravelingToResource;
+				UpdateStatus($"Hauling {GameCatalog.GetItem(itemId).DisplayName.ToLowerInvariant()} to {_activeGatherCommand.Cell.X}, {_activeGatherCommand.Cell.Y}...");
+				return;
+			}
+
+			int staged = frontierState.AddStaged(itemId, carriedAmount);
+			if (staged > 0)
+			{
+				_characterState.RemoveFromBag(itemId, staged);
+				_activeGatherCommand.RemainingAmount = frontierState.GetMissingAmount(itemId);
+				_queuePanelDirty = true;
+				UpdateQueuePanel();
+				RefreshActionPanel();
+			}
+
+			if (_activeGatherCommand.RemainingAmount <= 0)
+			{
+				CompleteCurrentCommand($"Delivered {GameCatalog.GetItem(itemId).DisplayName.ToLowerInvariant()} to ({_activeGatherCommand.Cell.X}, {_activeGatherCommand.Cell.Y}).");
+				RefreshActionPanel();
+				return;
+			}
+		}
+
+		if (_characterState.GetBagCount() > 0)
+		{
+			ProcessReturnToTown();
+			return;
+		}
+
+		if (_player.IsMoving)
+		{
+			_workerPhase = WorkerPhase.ReturningToTown;
+			UpdateStatus($"Returning to town for {GameCatalog.GetItem(itemId).DisplayName.ToLowerInvariant()}...");
+			return;
+		}
+
+		if (_player.CurrentCell != TownCell)
+		{
+			Vector2I nextCell = GetNextStep(_player.CurrentCell, TownCell);
+			_player.BeginStep(nextCell, GetCurrentStepDurationSeconds());
+			_workerPhase = WorkerPhase.ReturningToTown;
+			UpdateStatus($"Walking to town for {GameCatalog.GetItem(itemId).DisplayName.ToLowerInvariant()}...");
+			return;
+		}
+
+		int loaded = _characterState.LoadFromTown(_townState, itemId, _activeGatherCommand.RemainingAmount);
+		if (loaded <= 0)
+		{
+			RequeueFrontierRequirements(_activeGatherCommand.Cell, true, $"Stopped delivery to ({_activeGatherCommand.Cell.X}, {_activeGatherCommand.Cell.Y}).");
+			return;
+		}
+
+		UpdateTownPanel();
+		UpdateCharacterPanel();
+		_queuePanelDirty = true;
+		UpdateQueuePanel();
+		UpdateStatus($"Loaded {loaded} {GameCatalog.GetItem(itemId).DisplayName.ToLowerInvariant()} for tile ({_activeGatherCommand.Cell.X}, {_activeGatherCommand.Cell.Y}).");
 	}
 
 	private void ProcessTownUpgradeCommand(double delta)
@@ -1018,10 +1190,17 @@ public partial class InfiniteWorld : Node2D
 
 	private void CompleteExploreCycle(Vector2I cell)
 	{
+		if (_frontierTileStates.TryGetValue(cell, out FrontierTileState? frontierState))
+		{
+			frontierState.ConsumeRequirements();
+			_frontierTileStates.Remove(cell);
+		}
+
 		_exploredCells.Add(cell);
 		_characterState.AddSkillXp(GameCatalog.Exploring.Id);
 		CompleteCurrentCommand($"Exploration complete at ({cell.X}, {cell.Y}).");
 		UpdateCharacterPanel();
+		RefreshActionPanel();
 	}
 
 	private void UpdatePlayerProgressBar()
@@ -1066,13 +1245,13 @@ public partial class InfiniteWorld : Node2D
 	{
 		_activeGatherCommand = command;
 		_gatherProgressSeconds = 0.0;
-		_activeExploreRequirementPaid = false;
 		_activeTownUpgradePaid = false;
 		_workerPhase = command.Kind == WorkKind.Gather && _characterState.IsBagFull()
 			? WorkerPhase.ReturningToTown
 			: WorkerPhase.TravelingToResource;
 		_queuePanelDirty = true;
 		UpdateQueuePanel();
+		RefreshActionPanel();
 	}
 
 	private void CompleteCurrentCommand(string completedStatus)
@@ -1080,11 +1259,11 @@ public partial class InfiniteWorld : Node2D
 		CancelActiveConstructionVisualState();
 		_activeGatherCommand = null;
 		_gatherProgressSeconds = 0.0;
-		_activeExploreRequirementPaid = false;
 		_activeTownUpgradePaid = false;
 		_workerPhase = WorkerPhase.Idle;
 		_queuePanelDirty = true;
 		UpdateQueuePanel();
+		RefreshActionPanel();
 
 		if (TryStartNextQueuedCommand() && _activeGatherCommand is not null)
 		{
@@ -1131,47 +1310,7 @@ public partial class InfiniteWorld : Node2D
 			return false;
 		}
 
-		int requiredAmount = Rules.ExploreRequirementAmount;
-		int availableAtExecution = GetProjectedTownItemCount(Rules.ExploreRequirementItemId);
-		int shortfall = System.Math.Max(0, requiredAmount - availableAtExecution);
-		List<GatherCommand> plannedCommands = new();
-
-		if (shortfall > 0)
-		{
-			GatherCommand? gatherCommand = BuildGatherCommandForItem(Rules.ExploreRequirementItemId, shortfall);
-			if (gatherCommand is null)
-			{
-				ItemDefinition requirementItem = GameCatalog.GetItem(Rules.ExploreRequirementItemId);
-				statusMessage = $"No explored source is available to gather {requirementItem.DisplayName.ToLowerInvariant()}.";
-				return false;
-			}
-
-			plannedCommands.Add(gatherCommand);
-			queuedGatherAmount = shortfall;
-		}
-
-		plannedCommands.Add(CreateExploreCommand(cell));
-
-		if (prioritize)
-		{
-			_queuedCommands.InsertRange(0, plannedCommands);
-		}
-		else
-		{
-			_queuedCommands.AddRange(plannedCommands);
-		}
-
-		_queuePanelDirty = true;
-		UpdateQueuePanel();
-		if (_activeGatherCommand is null)
-		{
-			TryStartNextQueuedCommand();
-		}
-
-		statusMessage = shortfall > 0
-			? $"Queued {shortfall} {GameCatalog.GetItem(Rules.ExploreRequirementItemId).DisplayName.ToLowerInvariant()} first, then explore ({cell.X}, {cell.Y})."
-			: $"Queued exploration for tile ({cell.X}, {cell.Y}).";
-		return true;
+		return QueueFrontierCommands(cell, prioritize, true, out queuedGatherAmount, out statusMessage);
 	}
 
 	private bool QueueStockpileUpgradeWithRequirements(bool prioritize, out string statusMessage)
@@ -1238,17 +1377,33 @@ public partial class InfiniteWorld : Node2D
 	{
 		_activeGatherCommand = null;
 		_gatherProgressSeconds = 0.0;
-		_activeExploreRequirementPaid = false;
 		_workerPhase = WorkerPhase.Idle;
 		_queuePanelDirty = true;
 
-		if (QueueExploreCommandWithRequirements(exploreCommand.Cell, true, out _, out string statusMessage))
+		if (QueueFrontierCommands(exploreCommand.Cell, true, true, out _, out string statusMessage))
 		{
 			UpdateStatus(statusMessage);
 			return;
 		}
 
 		UpdateStatus($"Stopped explore at ({exploreCommand.Cell.X}, {exploreCommand.Cell.Y}). {statusMessage}");
+		TryStartNextQueuedCommand();
+	}
+
+	private void RequeueFrontierRequirements(Vector2I cell, bool includeExploreCommand, string stoppedPrefix)
+	{
+		_activeGatherCommand = null;
+		_gatherProgressSeconds = 0.0;
+		_workerPhase = WorkerPhase.Idle;
+		_queuePanelDirty = true;
+
+		if (QueueFrontierCommands(cell, true, includeExploreCommand, out _, out string statusMessage))
+		{
+			UpdateStatus(statusMessage);
+			return;
+		}
+
+		UpdateStatus($"{stoppedPrefix} {statusMessage}");
 		TryStartNextQueuedCommand();
 	}
 
@@ -1286,6 +1441,21 @@ public partial class InfiniteWorld : Node2D
 		};
 	}
 
+	private GatherCommand CreateExploreDeliveryCommand(Vector2I cell, string itemId, int amount)
+	{
+		ItemDefinition item = GameCatalog.GetItem(itemId);
+		return new GatherCommand
+		{
+			Cell = cell,
+			LinkedCell = cell,
+			ItemId = itemId,
+			Kind = WorkKind.DeliverExploreMaterials,
+			TotalAmount = amount,
+			RemainingAmount = amount,
+			Description = $"Deliver {item.DisplayName.ToLowerInvariant()} x{amount} to ({cell.X}, {cell.Y})",
+		};
+	}
+
 	private GatherCommand CreateExploreCommand(Vector2I cell)
 	{
 		return new GatherCommand
@@ -1298,7 +1468,7 @@ public partial class InfiniteWorld : Node2D
 		};
 	}
 
-	private GatherCommand? BuildGatherCommandForItem(string itemId, int amount)
+	private GatherCommand? BuildGatherCommandForItem(string itemId, int amount, Vector2I? linkedCell = null)
 	{
 		if (amount <= 0)
 		{
@@ -1320,7 +1490,23 @@ public partial class InfiniteWorld : Node2D
 					continue;
 				}
 
-				return CreateGatherCommand(resource.Id, action.Id, sourceCell.Value, amount);
+				GatherCommand command = CreateGatherCommand(resource.Id, action.Id, sourceCell.Value, amount);
+				if (linkedCell is not null)
+				{
+					return new GatherCommand
+					{
+						Kind = command.Kind,
+						ResourceId = command.ResourceId,
+						ResourceActionId = command.ResourceActionId,
+						Cell = command.Cell,
+						LinkedCell = linkedCell,
+						TotalAmount = command.TotalAmount,
+						RemainingAmount = command.RemainingAmount,
+						Description = command.Description,
+					};
+				}
+
+				return command;
 			}
 		}
 
@@ -1368,20 +1554,111 @@ public partial class InfiniteWorld : Node2D
 		return false;
 	}
 
+	private bool QueueFrontierCommands(Vector2I cell, bool prioritize, bool includeExploreCommand, out int queuedGatherAmount, out string statusMessage)
+	{
+		queuedGatherAmount = 0;
+		statusMessage = string.Empty;
+
+		EnsureFrontierRequirementsGenerated(cell);
+		FrontierTileState frontierState = EnsureFrontierTileState(cell);
+		if (!frontierState.HasRequirements())
+		{
+			statusMessage = "No farmable materials are unlocked for this frontier tile yet.";
+			return false;
+		}
+
+		List<GatherCommand> plannedCommands = new();
+		List<string> queuedGatherSummaries = new();
+		List<string> queuedDeliverySummaries = new();
+
+		foreach (KeyValuePair<string, int> requirement in frontierState.RequiredAmounts.OrderBy(pair => GameCatalog.GetItem(pair.Key).DisplayName))
+		{
+			int projectedStaged = GetProjectedFrontierItemCount(cell, requirement.Key);
+			int missingAmount = System.Math.Max(0, requirement.Value - projectedStaged);
+			if (missingAmount <= 0)
+			{
+				continue;
+			}
+
+			int projectedTown = GetProjectedTownItemCount(requirement.Key);
+			int shortfall = System.Math.Max(0, missingAmount - projectedTown);
+			if (shortfall > 0)
+			{
+				GatherCommand? gatherCommand = BuildGatherCommandForItem(requirement.Key, shortfall, cell);
+				if (gatherCommand is null)
+				{
+					ItemDefinition missingItem = GameCatalog.GetItem(requirement.Key);
+					statusMessage = $"No explored source is available to gather {missingItem.DisplayName.ToLowerInvariant()}.";
+					return false;
+				}
+
+				plannedCommands.Add(gatherCommand);
+				queuedGatherAmount += shortfall;
+				queuedGatherSummaries.Add($"{shortfall} {GameCatalog.GetItem(requirement.Key).DisplayName.ToLowerInvariant()}");
+			}
+
+			plannedCommands.Add(CreateExploreDeliveryCommand(cell, requirement.Key, missingAmount));
+			queuedDeliverySummaries.Add($"{missingAmount} {GameCatalog.GetItem(requirement.Key).DisplayName.ToLowerInvariant()}");
+		}
+
+		bool shouldQueueExplore = includeExploreCommand && !IsExploreAlreadyPlanned(cell);
+		if (shouldQueueExplore)
+		{
+			plannedCommands.Add(CreateExploreCommand(cell));
+		}
+
+		if (plannedCommands.Count == 0)
+		{
+			statusMessage = frontierState.IsReadyToExplore()
+				? $"Tile ({cell.X}, {cell.Y}) is already supplied and ready to explore."
+				: $"Tile ({cell.X}, {cell.Y}) is already waiting on scheduled deliveries.";
+			return includeExploreCommand ? shouldQueueExplore : frontierState.IsReadyToExplore();
+		}
+
+		if (prioritize)
+		{
+			_queuedCommands.InsertRange(0, plannedCommands);
+		}
+		else
+		{
+			_queuedCommands.AddRange(plannedCommands);
+		}
+
+		_queuePanelDirty = true;
+		UpdateQueuePanel();
+		if (_activeGatherCommand is null)
+		{
+			TryStartNextQueuedCommand();
+		}
+
+		if (queuedDeliverySummaries.Count == 0 && shouldQueueExplore)
+		{
+			statusMessage = $"Queued exploration for tile ({cell.X}, {cell.Y}).";
+		}
+		else if (queuedGatherSummaries.Count > 0)
+		{
+			statusMessage = $"Queued {FormatRequirementList(queuedGatherSummaries)} for town delivery, then stage {FormatRequirementList(queuedDeliverySummaries)} at ({cell.X}, {cell.Y}).";
+		}
+		else
+		{
+			statusMessage = $"Queued delivery of {FormatRequirementList(queuedDeliverySummaries)} to ({cell.X}, {cell.Y}).";
+		}
+
+		if (shouldQueueExplore)
+		{
+			statusMessage += $" Exploration will begin after the tile is supplied.";
+		}
+
+		return true;
+	}
+
 	private int GetProjectedTownItemCount(string itemId)
 	{
 		int projectedCount = _townState.GetStoredCount(itemId);
 
 		if (_activeGatherCommand is not null)
 		{
-			bool activeCostAlreadyPaid = _activeGatherCommand.Kind switch
-			{
-				WorkKind.Explore => _activeExploreRequirementPaid,
-				WorkKind.TownUpgrade => _activeTownUpgradePaid,
-				WorkKind.BuildingConstruction when _activeGatherCommand.BuildingId is not null => _townState.GetBuildingState(_activeGatherCommand.BuildingId).IsUnderConstruction,
-				_ => false,
-			};
-			projectedCount = ApplyProjectedTownDelta(projectedCount, itemId, _activeGatherCommand, activeCostAlreadyPaid);
+			projectedCount = ApplyProjectedTownDelta(projectedCount, itemId, _activeGatherCommand, true);
 		}
 
 		foreach (GatherCommand command in _queuedCommands)
@@ -1392,7 +1669,7 @@ public partial class InfiniteWorld : Node2D
 		return projectedCount;
 	}
 
-	private int ApplyProjectedTownDelta(int currentAmount, string itemId, GatherCommand command, bool requirementAlreadyPaid)
+	private int ApplyProjectedTownDelta(int currentAmount, string itemId, GatherCommand command, bool isActiveCommand)
 	{
 		if (command.Kind == WorkKind.Gather && command.ResourceId is not null)
 		{
@@ -1404,12 +1681,18 @@ public partial class InfiniteWorld : Node2D
 			}
 		}
 
-		if (command.Kind == WorkKind.Explore && Rules.ExploreRequirementItemId == itemId && !requirementAlreadyPaid)
+		if (command.Kind == WorkKind.DeliverExploreMaterials && command.ItemId == itemId)
 		{
-			return currentAmount - Rules.ExploreRequirementAmount;
+			int reservedAmount = System.Math.Max(0, command.RemainingAmount);
+			if (isActiveCommand)
+			{
+				reservedAmount = System.Math.Max(0, reservedAmount - _characterState.GetBagCount(itemId));
+			}
+
+			return currentAmount - reservedAmount;
 		}
 
-		if (command.Kind == WorkKind.TownUpgrade && !requirementAlreadyPaid)
+		if (command.Kind == WorkKind.TownUpgrade && !(_activeGatherCommand == command && _activeTownUpgradePaid))
 		{
 			foreach (BuildingCostDefinition cost in StockpileUpgrade.Costs)
 			{
@@ -1420,7 +1703,9 @@ public partial class InfiniteWorld : Node2D
 			}
 		}
 
-		if (command.Kind == WorkKind.BuildingConstruction && !requirementAlreadyPaid && !string.IsNullOrEmpty(command.BuildingId))
+		if (command.Kind == WorkKind.BuildingConstruction &&
+			!(isActiveCommand && !string.IsNullOrEmpty(command.BuildingId) && _townState.GetBuildingState(command.BuildingId).IsUnderConstruction) &&
+			!string.IsNullOrEmpty(command.BuildingId))
 		{
 			BuildingLevelDefinition level = GameCatalog.GetBuilding(command.BuildingId).GetLevelDefinition(command.TargetLevel);
 			foreach (BuildingCostDefinition cost in level.Costs)
@@ -1433,6 +1718,31 @@ public partial class InfiniteWorld : Node2D
 		}
 
 		return currentAmount;
+	}
+
+	private int GetProjectedFrontierItemCount(Vector2I cell, string itemId)
+	{
+		FrontierTileState frontierState = EnsureFrontierTileState(cell);
+		int projectedCount = frontierState.GetStagedAmount(itemId);
+
+		if (_activeGatherCommand?.Kind == WorkKind.DeliverExploreMaterials &&
+			_activeGatherCommand.Cell == cell &&
+			_activeGatherCommand.ItemId == itemId)
+		{
+			projectedCount += System.Math.Max(0, _activeGatherCommand.RemainingAmount);
+		}
+
+		foreach (GatherCommand command in _queuedCommands)
+		{
+			if (command.Kind == WorkKind.DeliverExploreMaterials &&
+				command.Cell == cell &&
+				command.ItemId == itemId)
+			{
+				projectedCount += System.Math.Max(0, command.RemainingAmount);
+			}
+		}
+
+		return projectedCount;
 	}
 
 	private bool CanQueueExploreCell(Vector2I cell)
@@ -1475,6 +1785,105 @@ public partial class InfiniteWorld : Node2D
 		return false;
 	}
 
+	private FrontierTileState EnsureFrontierTileState(Vector2I cell)
+	{
+		if (!_frontierTileStates.TryGetValue(cell, out FrontierTileState? state))
+		{
+			state = new FrontierTileState();
+			_frontierTileStates[cell] = state;
+		}
+
+		if (!state.RequirementsGenerated)
+		{
+			state.SetRequirements(GenerateExplorationRequirements(cell));
+		}
+
+		return state;
+	}
+
+	private void EnsureFrontierRequirementsGenerated(Vector2I cell)
+	{
+		_ = EnsureFrontierTileState(cell);
+	}
+
+	private List<ExplorationRequirementEntry> GenerateExplorationRequirements(Vector2I cell)
+	{
+		List<string> eligibleItemIds = GetFarmableExploreItemIds();
+		if (eligibleItemIds.Count == 0)
+		{
+			return new List<ExplorationRequirementEntry>();
+		}
+
+		int minTypes = System.Math.Max(1, Rules.ExploreRequirementMinResourceTypes);
+		int maxTypes = System.Math.Max(minTypes, Rules.ExploreRequirementMaxResourceTypes);
+		int typeCountRange = System.Math.Max(0, System.Math.Min(maxTypes, eligibleItemIds.Count) - System.Math.Min(minTypes, eligibleItemIds.Count));
+		int clampedMinTypes = System.Math.Min(minTypes, eligibleItemIds.Count);
+		int selectedTypeCount = clampedMinTypes + (typeCountRange <= 0 ? 0 : (int)(HashCell(cell.X, cell.Y, 0xC3A5C85Cu) % (uint)(typeCountRange + 1)));
+
+		List<string> orderedItems = eligibleItemIds
+			.OrderBy(itemId => StableStringHash(itemId) ^ HashCell(cell.X, cell.Y, 0x9E3779B9u))
+			.ToList();
+
+		List<ExplorationRequirementEntry> requirements = new();
+		for (int index = 0; index < selectedTypeCount; index++)
+		{
+			string itemId = orderedItems[index];
+			int amountRange = System.Math.Max(0, Rules.ExploreRequirementMaxAmount - Rules.ExploreRequirementMinAmount);
+			int amount = Rules.ExploreRequirementMinAmount + (amountRange <= 0
+				? 0
+				: (int)(HashCell(cell.X, cell.Y, 0xA24BAED4u + (uint)(index * 977)) % (uint)(amountRange + 1)));
+
+			requirements.Add(new ExplorationRequirementEntry
+			{
+				ItemId = itemId,
+				RequiredAmount = amount,
+			});
+		}
+
+		return requirements;
+	}
+
+	private List<string> GetFarmableExploreItemIds()
+	{
+		HashSet<string> itemIds = new(System.StringComparer.Ordinal);
+		foreach (Vector2I cell in _exploredCells)
+		{
+			string? resourceId = GetResourceId(cell);
+			if (string.IsNullOrEmpty(resourceId))
+			{
+				continue;
+			}
+
+			ResourceDefinition resource = GameCatalog.GetResource(resourceId);
+			foreach (ResourceActionDefinition action in GetResourceActions(resource))
+			{
+				if (IsResourceActionUnlocked(action))
+				{
+					itemIds.Add(action.ItemId);
+				}
+			}
+		}
+
+		return itemIds
+			.OrderBy(itemId => GameCatalog.GetItem(itemId).DisplayName)
+			.ToList();
+	}
+
+	private static uint StableStringHash(string value)
+	{
+		unchecked
+		{
+			uint hash = 2166136261u;
+			foreach (char character in value)
+			{
+				hash ^= character;
+				hash *= 16777619u;
+			}
+
+			return hash;
+		}
+	}
+
 	private bool IsQueuedForExplore(Vector2I cell)
 	{
 		if (_activeGatherCommand?.Kind == WorkKind.Explore && _activeGatherCommand.Cell == cell)
@@ -1491,6 +1900,86 @@ public partial class InfiniteWorld : Node2D
 		}
 
 		return false;
+	}
+
+	private bool HasPendingFrontierGather(Vector2I cell)
+	{
+		if (_activeGatherCommand?.Kind == WorkKind.Gather && _activeGatherCommand.LinkedCell == cell)
+		{
+			return true;
+		}
+
+		foreach (GatherCommand command in _queuedCommands)
+		{
+			if (command.Kind == WorkKind.Gather && command.LinkedCell == cell)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private bool HasPendingFrontierDelivery(Vector2I cell)
+	{
+		if (_activeGatherCommand?.Kind == WorkKind.DeliverExploreMaterials && _activeGatherCommand.Cell == cell)
+		{
+			return true;
+		}
+
+		foreach (GatherCommand command in _queuedCommands)
+		{
+			if (command.Kind == WorkKind.DeliverExploreMaterials && command.Cell == cell)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private string BuildFrontierRequirementsText(FrontierTileState frontierState)
+	{
+		if (!frontierState.HasRequirements())
+		{
+			return "No farmable exploration supplies are unlocked yet.";
+		}
+
+		List<string> parts = new();
+		foreach (KeyValuePair<string, int> requirement in frontierState.RequiredAmounts.OrderBy(pair => GameCatalog.GetItem(pair.Key).DisplayName))
+		{
+			ItemDefinition item = GameCatalog.GetItem(requirement.Key);
+			int stagedAmount = frontierState.GetStagedAmount(requirement.Key);
+			int missingAmount = frontierState.GetMissingAmount(requirement.Key);
+			parts.Add($"{item.DisplayName}: {stagedAmount}/{requirement.Value} staged" + (missingAmount > 0 ? $" ({missingAmount} missing)" : string.Empty));
+		}
+
+		return string.Join("   |   ", parts);
+	}
+
+	private string GetFrontierSelectionStatus(Vector2I cell, FrontierTileState frontierState)
+	{
+		if (!frontierState.HasRequirements())
+		{
+			return "Missing farmable resources";
+		}
+
+		if (_activeGatherCommand?.Kind == WorkKind.Explore && _activeGatherCommand.Cell == cell)
+		{
+			return "Exploring";
+		}
+
+		if (frontierState.IsReadyToExplore())
+		{
+			return IsExploreAlreadyPlanned(cell) ? "Explore queued" : "Ready to explore";
+		}
+
+		if (HasPendingFrontierDelivery(cell) || HasPendingFrontierGather(cell))
+		{
+			return "Delivering materials";
+		}
+
+		return "Waiting for delivery";
 	}
 
 	private void UpdateQueuePanel()
@@ -1543,13 +2032,31 @@ public partial class InfiniteWorld : Node2D
 			return command.Description;
 		}
 
-		if (command.Kind != WorkKind.Gather || command.TotalAmount <= 0)
+		if ((command.Kind != WorkKind.Gather && command.Kind != WorkKind.DeliverExploreMaterials) || command.TotalAmount <= 0)
 		{
 			return command.Description;
 		}
 
 		int completedAmount = command.TotalAmount - System.Math.Max(0, command.RemainingAmount);
 		return $"{command.Description} [{completedAmount}/{command.TotalAmount}]";
+	}
+
+	private Godot.Collections.Dictionary BuildCommandDebugRow(GatherCommand command, bool isActive)
+	{
+		return new Godot.Collections.Dictionary
+		{
+			["active"] = isActive,
+			["kind"] = command.Kind.ToString(),
+			["description"] = command.Description,
+			["cell_x"] = command.Cell.X,
+			["cell_y"] = command.Cell.Y,
+			["item_id"] = command.ItemId ?? string.Empty,
+			["resource_id"] = command.ResourceId ?? string.Empty,
+			["linked_cell_x"] = command.LinkedCell?.X ?? int.MinValue,
+			["linked_cell_y"] = command.LinkedCell?.Y ?? int.MinValue,
+			["remaining"] = command.RemainingAmount,
+			["total"] = command.TotalAmount,
+		};
 	}
 
 	private double EstimateQueueDurationSeconds()
@@ -1561,8 +2068,6 @@ public partial class InfiniteWorld : Node2D
 
 		Vector2I simulatedCell = _player.CurrentDisplayCell;
 		int simulatedBagTotal = _characterState.GetBagCount();
-		int simulatedBagRequirementCount = _characterState.GetBagCount(Rules.ExploreRequirementItemId);
-		int simulatedTownRequirementCount = _townState.GetStoredCount(Rules.ExploreRequirementItemId);
 		double totalSeconds = 0.0;
 
 		if (_activeGatherCommand is not null)
@@ -1571,9 +2076,7 @@ public partial class InfiniteWorld : Node2D
 				_activeGatherCommand,
 				true,
 				ref simulatedCell,
-				ref simulatedBagTotal,
-				ref simulatedBagRequirementCount,
-				ref simulatedTownRequirementCount);
+				ref simulatedBagTotal);
 		}
 
 		foreach (GatherCommand command in _queuedCommands)
@@ -1582,9 +2085,7 @@ public partial class InfiniteWorld : Node2D
 				command,
 				false,
 				ref simulatedCell,
-				ref simulatedBagTotal,
-				ref simulatedBagRequirementCount,
-				ref simulatedTownRequirementCount);
+				ref simulatedBagTotal);
 		}
 
 		return totalSeconds;
@@ -1594,9 +2095,7 @@ public partial class InfiniteWorld : Node2D
 		GatherCommand command,
 		bool isActiveCommand,
 		ref Vector2I simulatedCell,
-		ref int simulatedBagTotal,
-		ref int simulatedBagRequirementCount,
-		ref int simulatedTownRequirementCount)
+		ref int simulatedBagTotal)
 	{
 		double totalSeconds = 0.0;
 
@@ -1613,9 +2112,7 @@ public partial class InfiniteWorld : Node2D
 				{
 					totalSeconds += GetTravelSeconds(simulatedCell, TownCell);
 					simulatedCell = TownCell;
-					simulatedTownRequirementCount += simulatedBagRequirementCount;
 					simulatedBagTotal = 0;
-					simulatedBagRequirementCount = 0;
 				}
 
 				totalSeconds += GetTravelSeconds(simulatedCell, command.Cell);
@@ -1633,18 +2130,35 @@ public partial class InfiniteWorld : Node2D
 
 				totalSeconds += gatherSeconds;
 				simulatedBagTotal += gatheredThisTrip;
-				if (action.ItemId == Rules.ExploreRequirementItemId)
-				{
-					simulatedBagRequirementCount += gatheredThisTrip;
-				}
-
 				remainingAmount -= gatheredThisTrip;
 
 				totalSeconds += GetTravelSeconds(simulatedCell, TownCell);
 				simulatedCell = TownCell;
-				simulatedTownRequirementCount += simulatedBagRequirementCount;
 				simulatedBagTotal = 0;
-				simulatedBagRequirementCount = 0;
+			}
+		}
+		else if (command.Kind == WorkKind.DeliverExploreMaterials)
+		{
+			int remainingAmount = System.Math.Max(0, command.RemainingAmount);
+			while (remainingAmount > 0)
+			{
+				if (simulatedBagTotal > 0)
+				{
+					totalSeconds += GetTravelSeconds(simulatedCell, TownCell);
+					simulatedCell = TownCell;
+					simulatedBagTotal = 0;
+				}
+
+				totalSeconds += GetTravelSeconds(simulatedCell, TownCell);
+				simulatedCell = TownCell;
+
+				int deliveredThisTrip = System.Math.Min(remainingAmount, _characterState.BagCapacity);
+				simulatedBagTotal = deliveredThisTrip;
+
+				totalSeconds += GetTravelSeconds(simulatedCell, command.Cell);
+				simulatedCell = command.Cell;
+				simulatedBagTotal = 0;
+				remainingAmount -= deliveredThisTrip;
 			}
 		}
 		else if (command.Kind == WorkKind.Explore)
@@ -1659,7 +2173,6 @@ public partial class InfiniteWorld : Node2D
 			}
 
 			totalSeconds += exploreSeconds;
-			simulatedTownRequirementCount = System.Math.Max(0, simulatedTownRequirementCount - Rules.ExploreRequirementAmount);
 		}
 		else if (command.Kind == WorkKind.TownUpgrade)
 		{
@@ -1673,7 +2186,6 @@ public partial class InfiniteWorld : Node2D
 			}
 
 			totalSeconds += upgradeSeconds;
-			simulatedTownRequirementCount = System.Math.Max(0, simulatedTownRequirementCount);
 		}
 		else if (command.Kind == WorkKind.BuildingConstruction && !string.IsNullOrEmpty(command.BuildingId))
 		{
@@ -1851,85 +2363,96 @@ public partial class InfiniteWorld : Node2D
 		_actionPrimaryResourceActionId = null;
 		_actionSecondaryResourceActionId = null;
 		_actionWorkKind = WorkKind.Explore;
-
-		ItemDefinition requirementItem = GameCatalog.GetItem(Rules.ExploreRequirementItemId);
-		int availableRequirement = _townState.GetStoredCount(requirementItem.Id);
-		int projectedRequirement = GetProjectedTownItemCount(requirementItem.Id);
-		int missingRequirement = System.Math.Max(0, Rules.ExploreRequirementAmount - projectedRequirement);
+		FrontierTileState frontierState = EnsureFrontierTileState(cell);
 		SkillDefinition exploringSkill = GameCatalog.Exploring;
+		string statusText = GetFrontierSelectionStatus(cell, frontierState);
+		bool hasRequirements = frontierState.HasRequirements();
+		bool deliveriesPending = HasPendingFrontierGather(cell) || HasPendingFrontierDelivery(cell);
+		bool isExploring = _activeGatherCommand?.Kind == WorkKind.Explore && _activeGatherCommand.Cell == cell;
+		bool readyToExplore = frontierState.IsReadyToExplore();
+		bool explorePlanned = IsExploreAlreadyPlanned(cell);
+		string primaryText = !hasRequirements
+			? "Missing farmable resources"
+			: isExploring
+				? "Exploring..."
+				: readyToExplore
+					? (explorePlanned ? "Explore queued" : "Queue Explore")
+					: deliveriesPending
+						? "Delivering materials"
+						: "Queue Deliveries";
+		bool primaryEnabled = hasRequirements && !isExploring && (!deliveriesPending || readyToExplore) && !explorePlanned;
+		List<SelectionStatChipViewData> stats = new();
+
+		foreach (KeyValuePair<string, int> requirement in frontierState.RequiredAmounts.OrderBy(pair => GameCatalog.GetItem(pair.Key).DisplayName))
+		{
+			ItemDefinition item = GameCatalog.GetItem(requirement.Key);
+			int stagedAmount = frontierState.GetStagedAmount(requirement.Key);
+			int missingAmount = frontierState.GetMissingAmount(requirement.Key);
+			stats.Add(new SelectionStatChipViewData
+			{
+				IconGlyph = GetItemGlyph(item.Id),
+				Label = item.DisplayName,
+				Value = $"{stagedAmount}/{requirement.Value}",
+				TooltipText = $"{stagedAmount} of {requirement.Value} {item.DisplayName.ToLowerInvariant()} staged on this frontier tile. Missing {missingAmount}.",
+				AccentColor = missingAmount > 0 ? GameCatalog.Foraging.IconColor : exploringSkill.IconColor,
+			});
+		}
+
+		stats.Add(new SelectionStatChipViewData
+		{
+			IconGlyph = GameCatalog.Running.IconGlyph,
+			Label = "March",
+			Value = FormatFixedSeconds(GetCurrentStepDurationSeconds(), 2),
+			TooltipText = "Current travel time for each step toward the frontier.",
+			AccentColor = GameCatalog.Running.IconColor,
+		});
+		stats.Add(new SelectionStatChipViewData
+		{
+			IconGlyph = "E",
+			Label = "Survey",
+			Value = FormatDuration(GetCurrentExploreDurationSeconds()),
+			TooltipText = "Time needed to chart and reveal this tile once the frontier camp is supplied.",
+			AccentColor = exploringSkill.IconColor,
+		});
+		stats.Add(new SelectionStatChipViewData
+		{
+			IconGlyph = exploringSkill.IconGlyph,
+			Label = exploringSkill.DisplayName,
+			Value = $"Lv.{_characterState.GetSkillLevel(exploringSkill.Id)}",
+			TooltipText = "Exploring gains experience while time is spent surveying.",
+			AccentColor = exploringSkill.IconColor,
+		});
+		stats.Add(new SelectionStatChipViewData
+		{
+			IconGlyph = "S",
+			Label = "Status",
+			Value = statusText,
+			TooltipText = "Frontier logistics must finish before exploration can begin.",
+			AccentColor = statusText is "Ready to explore" or "Exploring" ? exploringSkill.IconColor : new Color(0.86f, 0.72f, 0.46f),
+		});
 
 		_selectedResourcePanel.SetData(new SelectedResourcePanelViewData
 		{
 			Title = "Frontier Tile",
-			Subtitle = "Survey the edge of the wild and reveal fresh ground for the town.",
+			Subtitle = "Raise a forward camp with staged supplies before the survey can begin.",
 			TagText = "FRONTIER",
 			IconGlyph = exploringSkill.IconGlyph,
 			AccentColor = exploringSkill.IconColor,
-			Stats = new System.Collections.Generic.List<SelectionStatChipViewData>
-			{
-				new()
-				{
-					IconGlyph = GetItemGlyph(requirementItem.Id),
-					Label = "Cost",
-					Value = $"{Rules.ExploreRequirementAmount} {requirementItem.DisplayName}",
-					TooltipText = $"Exploration spends {Rules.ExploreRequirementAmount} {requirementItem.DisplayName.ToLowerInvariant()} from town storage.",
-					AccentColor = GameCatalog.Foraging.IconColor,
-				},
-				new()
-				{
-					IconGlyph = GameCatalog.Running.IconGlyph,
-					Label = "March",
-					Value = FormatFixedSeconds(GetCurrentStepDurationSeconds(), 2),
-					TooltipText = "Current travel time for each step toward the frontier.",
-					AccentColor = GameCatalog.Running.IconColor,
-				},
-				new()
-				{
-					IconGlyph = "E",
-					Label = "Survey",
-					Value = FormatDuration(GetCurrentExploreDurationSeconds()),
-					TooltipText = "Time needed to chart and reveal this tile.",
-					AccentColor = exploringSkill.IconColor,
-				},
-				new()
-				{
-					IconGlyph = GetItemGlyph(requirementItem.Id),
-					Label = "Town",
-					Value = availableRequirement.ToString(),
-					TooltipText = $"{requirementItem.DisplayName} currently stored in town.",
-					AccentColor = GameCatalog.Foraging.IconColor,
-				},
-				new()
-				{
-					IconGlyph = exploringSkill.IconGlyph,
-					Label = exploringSkill.DisplayName,
-					Value = $"Lv.{_characterState.GetSkillLevel(exploringSkill.Id)}",
-					TooltipText = "Exploring gains experience while time is spent surveying.",
-					AccentColor = exploringSkill.IconColor,
-				},
-				new()
-				{
-					IconGlyph = "Q",
-					Label = "Missing",
-					Value = missingRequirement > 0 ? missingRequirement.ToString() : "Ready",
-					TooltipText = missingRequirement > 0
-						? $"{missingRequirement} more {requirementItem.DisplayName.ToLowerInvariant()} will be queued automatically first."
-						: "Town stores already cover the exploration cost.",
-					AccentColor = missingRequirement > 0 ? GameCatalog.Foraging.IconColor : exploringSkill.IconColor,
-				},
-			},
-			ProgressionText = missingRequirement > 0
-				? $"Missing {requirementItem.DisplayName.ToLowerInvariant()} will be gathered first, then the survey begins."
-				: "Town stockpile is ready. Queue the survey whenever you wish.",
+			Stats = stats,
+			ProgressionText = BuildFrontierRequirementsText(frontierState),
 			ProgressionTooltipText = "Exploring gains 1 XP per second and trims explore time multiplicatively as it levels.",
-			EmphasizeProgression = missingRequirement > 0,
-			ActionNoteText = $"Surveying grants {Rules.ExploringXpPerSecond:0} XP per second and spends town stores.",
+			EmphasizeProgression = !readyToExplore,
+			ActionNoteText = hasRequirements
+				? "Town stockpile is the staging hub. Missing supplies are gathered home first, then hauled onto the frontier tile."
+				: "Explore requirements only draw from resource types you can already farm.",
 			ShowCancelAction = ShouldShowSelectionCancelAction(),
 			PrimaryAction = new SelectedResourcePanelActionViewData
 			{
-				Text = "Queue Explore",
-				Enabled = true,
-				TooltipText = $"Queue exploration for tile ({cell.X}, {cell.Y}).",
+				Text = primaryText,
+				Enabled = primaryEnabled,
+				TooltipText = hasRequirements
+					? $"Plan supplies and exploration for tile ({cell.X}, {cell.Y})."
+					: "Unlock more farmable resources before this frontier can be supplied.",
 			},
 		});
 
@@ -2580,7 +3103,6 @@ public partial class InfiniteWorld : Node2D
 		_activeGatherCommand = null;
 		_queuedCommands.Clear();
 		_gatherProgressSeconds = 0.0;
-		_activeExploreRequirementPaid = false;
 		_activeTownUpgradePaid = false;
 		_workerPhase = WorkerPhase.Idle;
 		_queuePanelDirty = true;

@@ -5,6 +5,7 @@ namespace IdleNet;
 public enum WorkKind
 {
     Gather,
+    DeliverExploreMaterials,
     Explore,
     TownUpgrade,
     BuildingConstruction,
@@ -22,9 +23,13 @@ public sealed class GatherCommand
 
     public string? BuildingId { get; init; }
 
+    public string? ItemId { get; init; }
+
     public int TargetLevel { get; init; }
 
     public required Vector2I Cell { get; init; }
+
+    public Vector2I? LinkedCell { get; init; }
 
     public int TotalAmount { get; init; }
 

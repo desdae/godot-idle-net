@@ -42,6 +42,11 @@ public sealed class CharacterState
         return total;
     }
 
+    public int GetRemainingBagCapacity()
+    {
+        return BagCapacity - GetBagCount();
+    }
+
     public bool IsBagFull()
     {
         return GetBagCount() >= BagCapacity;
@@ -89,5 +94,20 @@ public sealed class CharacterState
         }
 
         return moved;
+    }
+
+    public int LoadFromTown(TownState townState, string itemId, int amount)
+    {
+        int movable = System.Math.Min(amount, GetRemainingBagCapacity());
+        int loaded = townState.TakeStored(itemId, movable);
+        _bagCounts[itemId] += loaded;
+        return loaded;
+    }
+
+    public int RemoveFromBag(string itemId, int amount)
+    {
+        int removed = System.Math.Min(amount, _bagCounts[itemId]);
+        _bagCounts[itemId] -= removed;
+        return removed;
     }
 }
