@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="TownUpgradeDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Data/TownUpgradeDefinition.cs" id="1_upgrade"]
+[ext_resource type="Script" path="res://Scripts/Data/BuildingCostDefinition.cs" id="2_cost"]
+
+[sub_resource type="Resource" id="1"]
+script = ExtResource("2_cost")
+ItemId = "sticks"
+Amount = 50
+
+[sub_resource type="Resource" id="2"]
+script = ExtResource("2_cost")
+ItemId = "stones"
+Amount = 50
+
+[resource]
+script = ExtResource("1_upgrade")
+Id = "stockpile"
+DisplayName = "Stockpile"
+DurationSeconds = 45.0
+CapacityMultiplier = 1.25
+CapacityRoundTo = 10
+Costs = Array[Resource]([SubResource("1"), SubResource("2")])

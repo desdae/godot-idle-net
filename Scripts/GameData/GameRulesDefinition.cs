@@ -32,16 +32,6 @@ public sealed class GameRulesDefinition
 
     public double BuildingXpPerSecond { get; init; }
 
-    public double StockpileUpgradeCapacityMultiplier { get; init; }
-
-    public int StockpileUpgradeCapacityRoundTo { get; init; }
-
-    public int StockpileUpgradeBaseSticksCost { get; init; }
-
-    public int StockpileUpgradeBaseStonesCost { get; init; }
-
-    public double StockpileUpgradeDurationSeconds { get; init; }
-
     public int SkillXpBaseRequirement { get; init; }
 
     public double SkillXpGrowthFactor { get; init; }

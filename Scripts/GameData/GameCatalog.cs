@@ -16,10 +16,13 @@ public static class GameCatalog
 
 	public static IReadOnlyList<BuildingDefinition> Buildings { get; }
 
+	public static IReadOnlyList<TownUpgradeDefinition> TownUpgrades { get; }
+
 	private static readonly Dictionary<string, SkillDefinition> SkillsById;
 	private static readonly Dictionary<string, ItemDefinition> ItemsById;
 	private static readonly Dictionary<string, ResourceDefinition> ResourcesById;
 	private static readonly Dictionary<string, BuildingDefinition> BuildingsById;
+	private static readonly Dictionary<string, TownUpgradeDefinition> TownUpgradesById;
 
 	static GameCatalog()
 	{
@@ -28,11 +31,13 @@ public static class GameCatalog
 		Items = LoadList<ItemDefinition>("res://Data/items.json");
 		Resources = LoadList<ResourceDefinition>("res://Data/resources.json");
 		Buildings = LoadResourcesFromDirectory<BuildingDefinition>("res://Data/Buildings");
+		TownUpgrades = LoadResourcesFromDirectory<TownUpgradeDefinition>("res://Data/TownUpgrades");
 
 		SkillsById = CreateMap(Skills, skill => skill.Id);
 		ItemsById = CreateMap(Items, item => item.Id);
 		ResourcesById = CreateMap(Resources, resource => resource.Id);
 		BuildingsById = CreateMap(Buildings, building => building.Id);
+		TownUpgradesById = CreateMap(TownUpgrades, upgrade => upgrade.Id);
 	}
 
 	public static SkillDefinition Woodcutting => GetSkill("woodcutting");
@@ -61,7 +66,11 @@ public static class GameCatalog
 
 	public static ResourceDefinition BerryBush => GetResource("berries");
 
+	public static TownUpgradeDefinition StockpileUpgrade => GetTownUpgrade("stockpile");
+
 	public static BuildingDefinition GetBuilding(string id) => BuildingsById[id];
+
+	public static TownUpgradeDefinition GetTownUpgrade(string id) => TownUpgradesById[id];
 
 	public static SkillDefinition GetSkill(string id) => SkillsById[id];
 

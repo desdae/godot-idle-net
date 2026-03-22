@@ -12,14 +12,14 @@ StatChipScene = ExtResource("2_chip")
 
 [node name="OuterMargin" type="MarginContainer" parent="."]
 layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
 
 [node name="RootColumn" type="VBoxContainer" parent="OuterMargin"]
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 5
 
 [node name="HeaderRow" type="HBoxContainer" parent="OuterMargin/RootColumn"]
 theme_override_constants/separation = 8
@@ -69,16 +69,16 @@ custom_minimum_size = Vector2(0, 2)
 [node name="StatsGrid" type="GridContainer" parent="OuterMargin/RootColumn"]
 columns = 2
 theme_override_constants/h_separation = 6
-theme_override_constants/v_separation = 6
+theme_override_constants/v_separation = 4
 
 [node name="ProgressionPanel" type="PanelContainer" parent="OuterMargin/RootColumn"]
 
 [node name="ProgressionMargin" type="MarginContainer" parent="OuterMargin/RootColumn/ProgressionPanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 6
-theme_override_constants/margin_top = 4
+theme_override_constants/margin_top = 3
 theme_override_constants/margin_right = 6
-theme_override_constants/margin_bottom = 4
+theme_override_constants/margin_bottom = 3
 
 [node name="ProgressionRow" type="HBoxContainer" parent="OuterMargin/RootColumn/ProgressionPanel/ProgressionMargin"]
 layout_mode = 2
@@ -98,9 +98,9 @@ vertical_alignment = 1
 [node name="ActionNoteMargin" type="MarginContainer" parent="OuterMargin/RootColumn/ActionNotePanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 6
-theme_override_constants/margin_top = 4
+theme_override_constants/margin_top = 3
 theme_override_constants/margin_right = 6
-theme_override_constants/margin_bottom = 4
+theme_override_constants/margin_bottom = 3
 
 [node name="ActionNoteLabel" type="Label" parent="OuterMargin/RootColumn/ActionNotePanel/ActionNoteMargin"]
 layout_mode = 2
@@ -108,15 +108,15 @@ clip_text = true
 text = "Yield: sticks, sells for 1g each."
 
 [node name="ActionButtons" type="VBoxContainer" parent="OuterMargin/RootColumn"]
-theme_override_constants/separation = 5
+theme_override_constants/separation = 4
 
 [node name="PrimaryButton" type="Button" parent="OuterMargin/RootColumn/ActionButtons"]
-custom_minimum_size = Vector2(0, 40)
+custom_minimum_size = Vector2(0, 38)
 text = "Gather sticks x10"
 
 [node name="SecondaryButton" type="Button" parent="OuterMargin/RootColumn/ActionButtons"]
 visible = false
-custom_minimum_size = Vector2(0, 30)
+custom_minimum_size = Vector2(0, 28)
 text = "Cut logs (Lv.10)"
 
 [node name="CancelButton" type="Button" parent="OuterMargin/RootColumn/ActionButtons"]

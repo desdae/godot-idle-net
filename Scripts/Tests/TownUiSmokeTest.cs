@@ -10,9 +10,13 @@ public partial class TownUiSmokeTest : Node
 	[Export]
 	public PackedScene? MainScene { get; set; }
 
+	[Export]
+	public float TimeScale { get; set; } = 16.0f;
+
 	private readonly List<string> _failures = new();
 	private InfiniteWorld? _world;
 	private TownUI? _townUi;
+	private double _previousTimeScale = 1.0;
 
 	public override void _Ready()
 	{
@@ -23,6 +27,12 @@ public partial class TownUiSmokeTest : Node
 	{
 		try
 		{
+			_previousTimeScale = Engine.TimeScale;
+			if (TimeScale > 0.0f)
+			{
+				Engine.TimeScale = TimeScale;
+			}
+
 			if (MainScene is null)
 			{
 				Fail("Main scene was not assigned to the town UI smoke test.");
@@ -62,7 +72,7 @@ public partial class TownUiSmokeTest : Node
 
 			Require(stockpileBar.IsVisibleInTree(), "Stockpile bar should be visible when the town UI is open.");
 			Require(stockpileUpgradeButton.IsVisibleInTree(), "Stockpile upgrade button should be visible when the town UI is open.");
-			Require(stockpileUpgradeButton.Disabled, "Stockpile upgrade button should start disabled before materials are gathered.");
+			Require(!stockpileUpgradeButton.Disabled, "Stockpile upgrade button should stay available because missing materials auto-queue now.");
 			Require(resourceList.GetChildCount() > 0, "Town resource rows should be populated.");
 			Require(buildingList.GetChildCount() > 0, "Build & Upgrade cards should be populated.");
 			Require(buildingScroll.IsVisibleInTree(), "Building scroll should be visible.");
@@ -138,6 +148,8 @@ public partial class TownUiSmokeTest : Node
 
 	private void Finish()
 	{
+		Engine.TimeScale = _previousTimeScale;
+
 		if (_failures.Count == 0)
 		{
 			GD.Print("TOWN_UI_SMOKE:PASS");

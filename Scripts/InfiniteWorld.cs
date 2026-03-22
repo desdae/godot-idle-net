@@ -50,11 +50,9 @@ public partial class InfiniteWorld : Node2D
 	private Label? _coordsLabel;
 	private Label? _statusLabel;
 	private Label? _hintLabel;
+	private LeftSidebar? _leftSidebar;
 	private SelectedResourcePanel? _selectedResourcePanel;
-	private Button? _queueToggleButton;
-	private PanelContainer? _queuePanel;
-	private Label? _queueSummaryLabel;
-	private VBoxContainer? _queueEntriesList;
+	private QueuePanel? _queuePanel;
 	private TownUI? _townUi;
 	private PanelContainer? _townPanel;
 	private Label? _townBody;
@@ -323,9 +321,9 @@ public partial class InfiniteWorld : Node2D
 
 		_statusLabel = new Label
 		{
-			OffsetLeft = 16.0f,
+			OffsetLeft = 404.0f,
 			OffsetTop = 660.0f,
-			OffsetRight = 860.0f,
+			OffsetRight = 1180.0f,
 			OffsetBottom = 710.0f,
 			Text = string.Empty,
 		};
@@ -335,80 +333,31 @@ public partial class InfiniteWorld : Node2D
 		_statusLabel.AddThemeConstantOverride("shadow_offset_y", 2);
 		hud.AddChild(_statusLabel);
 
-		PackedScene selectionPanelScene = ResourceLoader.Load<PackedScene>("res://UI/Selection/SelectedResourcePanel.tscn");
-		_selectedResourcePanel = selectionPanelScene.Instantiate<SelectedResourcePanel>();
-		_selectedResourcePanel.Visible = false;
-		_selectedResourcePanel.OffsetLeft = 16.0f;
-		_selectedResourcePanel.OffsetTop = 144.0f;
-		_selectedResourcePanel.OffsetRight = 388.0f;
-		_selectedResourcePanel.OffsetBottom = 408.0f;
-		_selectedResourcePanel.PrimaryActionRequested += OnActionButtonPressed;
-		_selectedResourcePanel.SecondaryActionRequested += OnSecondaryActionButtonPressed;
-		_selectedResourcePanel.CancelRequested += ClearGatherCommand;
-		hud.AddChild(_selectedResourcePanel);
+		PackedScene leftSidebarScene = ResourceLoader.Load<PackedScene>("res://UI/HUD/LeftSidebar.tscn");
+		_leftSidebar = leftSidebarScene.Instantiate<LeftSidebar>();
+		_leftSidebar.OffsetLeft = 16.0f;
+		_leftSidebar.OffsetTop = 92.0f;
+		_leftSidebar.OffsetRight = 388.0f;
+		_leftSidebar.OffsetBottom = 710.0f;
+		_leftSidebar.QueueToggleRequested += ToggleQueuePanel;
+		hud.AddChild(_leftSidebar);
 
-		_queueToggleButton = new Button
+		_selectedResourcePanel = _leftSidebar.SelectedResourcePanel;
+		_queuePanel = _leftSidebar.QueuePanel;
+
+		if (_selectedResourcePanel is not null)
 		{
-			Text = "Queue",
-			OffsetLeft = 16.0f,
-			OffsetTop = 100.0f,
-			OffsetRight = 110.0f,
-			OffsetBottom = 132.0f,
-		};
-		_queueToggleButton.Pressed += ToggleQueuePanel;
-		hud.AddChild(_queueToggleButton);
+			_selectedResourcePanel.Visible = false;
+			_selectedResourcePanel.PrimaryActionRequested += OnActionButtonPressed;
+			_selectedResourcePanel.SecondaryActionRequested += OnSecondaryActionButtonPressed;
+			_selectedResourcePanel.CancelRequested += ClearGatherCommand;
+		}
 
-		_queuePanel = new PanelContainer
+		if (_queuePanel is not null)
 		{
-			Visible = false,
-			OffsetLeft = 16.0f,
-			OffsetTop = 430.0f,
-			OffsetRight = 360.0f,
-			OffsetBottom = 640.0f,
-		};
-
-		VBoxContainer queueBox = new();
-		queueBox.AddThemeConstantOverride("separation", 8);
-		queueBox.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-		queueBox.OffsetLeft = 14.0f;
-		queueBox.OffsetTop = 14.0f;
-		queueBox.OffsetRight = -14.0f;
-		queueBox.OffsetBottom = -14.0f;
-
-		Label queueTitle = new()
-		{
-			Text = "Action Queue",
-			HorizontalAlignment = HorizontalAlignment.Center,
-		};
-
-		_queueSummaryLabel = new Label
-		{
-			AutowrapMode = TextServer.AutowrapMode.WordSmart,
-			Text = "No queued actions.",
-		};
-
-		ScrollContainer queueScroll = new()
-		{
-			CustomMinimumSize = new Vector2(0.0f, 90.0f),
-			VerticalScrollMode = ScrollContainer.ScrollMode.ShowAlways,
-			HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-			SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-		};
-
-		_queueEntriesList = new VBoxContainer();
-		_queueEntriesList.AddThemeConstantOverride("separation", 2);
-		_queueEntriesList.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-		queueScroll.AddChild(_queueEntriesList);
-
-		Button clearQueueButton = new() { Text = "Clear Queue" };
-		clearQueueButton.Pressed += ClearGatherCommand;
-
-		queueBox.AddChild(queueTitle);
-		queueBox.AddChild(_queueSummaryLabel);
-		queueBox.AddChild(queueScroll);
-		queueBox.AddChild(clearQueueButton);
-		_queuePanel.AddChild(queueBox);
-		hud.AddChild(_queuePanel);
+			_queuePanel.Visible = false;
+			_queuePanel.ClearRequested += ClearGatherCommand;
+		}
 
 		_townPanel = new PanelContainer
 		{
@@ -1016,29 +965,36 @@ public partial class InfiniteWorld : Node2D
 		return _characterState.GetSkillLevel(action.SkillId) >= action.MinSkillLevel;
 	}
 
-	private static int RoundToNearest(int value, int step)
-	{
-		return (int)System.Math.Round(value / (double)step, System.MidpointRounding.AwayFromZero) * step;
-	}
-
-	private int GetStockpileUpgradeSticksCost()
-	{
-		return Rules.StockpileUpgradeBaseSticksCost;
-	}
-
-	private int GetStockpileUpgradeStonesCost()
-	{
-		return Rules.StockpileUpgradeBaseStonesCost;
-	}
+	private static TownUpgradeDefinition StockpileUpgrade => GameCatalog.StockpileUpgrade;
 
 	private double GetStockpileUpgradeDurationSeconds()
 	{
-		return Rules.StockpileUpgradeDurationSeconds;
+		return StockpileUpgrade.DurationSeconds;
 	}
 
 	private int GetNextStockpileCapacity()
 	{
-		return _townState.PreviewNextStockpileCapacity(Rules.StockpileUpgradeCapacityMultiplier, Rules.StockpileUpgradeCapacityRoundTo);
+		return _townState.PreviewNextStockpileCapacity(StockpileUpgrade.CapacityMultiplier, StockpileUpgrade.CapacityRoundTo);
+	}
+
+	private string BuildStockpileUpgradeCostSummary()
+	{
+		StringBuilder builder = new();
+		for (int index = 0; index < StockpileUpgrade.Costs.Count; index++)
+		{
+			BuildingCostDefinition cost = StockpileUpgrade.Costs[index];
+			if (index > 0)
+			{
+				builder.Append("   |   ");
+			}
+
+			ItemDefinition item = GameCatalog.GetItem(cost.ItemId);
+			builder.Append(cost.Amount)
+				.Append(' ')
+				.Append(item.DisplayName.ToLowerInvariant());
+		}
+
+		return builder.ToString();
 	}
 
 	private void ProcessGatherCommand(double delta)
@@ -1239,19 +1195,14 @@ public partial class InfiniteWorld : Node2D
 
 		if (!_activeTownUpgradePaid)
 		{
-			int sticksCost = GetStockpileUpgradeSticksCost();
-			int stonesCost = GetStockpileUpgradeStonesCost();
-			bool hasSticks = _townState.GetStoredCount(GameCatalog.Sticks.Id) >= sticksCost;
-			bool hasStones = _townState.GetStoredCount(GameCatalog.Stones.Id) >= stonesCost;
-			if (!hasSticks || !hasStones)
+			if (!_townState.CanAfford(StockpileUpgrade.Costs))
 			{
 				RequeueStockpileUpgradeForRequirements();
 				UpdateTownPanel();
 				return;
 			}
 
-			_townState.TryConsumeStored(GameCatalog.Sticks.Id, sticksCost);
-			_townState.TryConsumeStored(GameCatalog.Stones.Id, stonesCost);
+			_townState.TryConsumeCosts(StockpileUpgrade.Costs);
 			_activeTownUpgradePaid = true;
 			UpdateTownPanel();
 		}
@@ -1268,7 +1219,7 @@ public partial class InfiniteWorld : Node2D
 			return;
 		}
 
-		int nextCapacity = _townState.UpgradeStockpile(Rules.StockpileUpgradeCapacityMultiplier, Rules.StockpileUpgradeCapacityRoundTo);
+		int nextCapacity = _townState.UpgradeStockpile(StockpileUpgrade.CapacityMultiplier, StockpileUpgrade.CapacityRoundTo);
 		_gatherProgressSeconds -= duration;
 		UpdateTownPanel();
 		CompleteCurrentCommand($"Stockpile upgraded to Lv.{_townState.StockpileLevel}. Capacity is now {nextCapacity}.");
@@ -1630,35 +1581,27 @@ public partial class InfiniteWorld : Node2D
 	{
 		statusMessage = string.Empty;
 
-		int sticksShortfall = System.Math.Max(0, GetStockpileUpgradeSticksCost() - GetProjectedTownItemCount(GameCatalog.Sticks.Id));
-		int stonesShortfall = System.Math.Max(0, GetStockpileUpgradeStonesCost() - GetProjectedTownItemCount(GameCatalog.Stones.Id));
 		List<GatherCommand> plannedCommands = new();
 		List<string> queuedRequirements = new();
 
-		if (sticksShortfall > 0)
+		foreach (BuildingCostDefinition cost in StockpileUpgrade.Costs)
 		{
-			GatherCommand? sticksCommand = BuildGatherCommandForItem(GameCatalog.Sticks.Id, sticksShortfall);
-			if (sticksCommand is null)
+			int shortfall = System.Math.Max(0, cost.Amount - GetProjectedTownItemCount(cost.ItemId));
+			if (shortfall <= 0)
 			{
-				statusMessage = $"No explored source is available to gather {GameCatalog.Sticks.DisplayName.ToLowerInvariant()}.";
+				continue;
+			}
+
+			GatherCommand? gatherCommand = BuildGatherCommandForItem(cost.ItemId, shortfall);
+			if (gatherCommand is null)
+			{
+				ItemDefinition item = GameCatalog.GetItem(cost.ItemId);
+				statusMessage = $"No explored source is available to gather {item.DisplayName.ToLowerInvariant()}.";
 				return false;
 			}
 
-			plannedCommands.Add(sticksCommand);
-			queuedRequirements.Add($"{sticksShortfall} {GameCatalog.Sticks.DisplayName.ToLowerInvariant()}");
-		}
-
-		if (stonesShortfall > 0)
-		{
-			GatherCommand? stonesCommand = BuildGatherCommandForItem(GameCatalog.Stones.Id, stonesShortfall);
-			if (stonesCommand is null)
-			{
-				statusMessage = $"No explored source is available to gather {GameCatalog.Stones.DisplayName.ToLowerInvariant()}.";
-				return false;
-			}
-
-			plannedCommands.Add(stonesCommand);
-			queuedRequirements.Add($"{stonesShortfall} {GameCatalog.Stones.DisplayName.ToLowerInvariant()}");
+			plannedCommands.Add(gatherCommand);
+			queuedRequirements.Add($"{shortfall} {GameCatalog.GetItem(cost.ItemId).DisplayName.ToLowerInvariant()}");
 		}
 
 		int projectedLevel = _townState.StockpileLevel + GetQueuedStockpileUpgradeCount() + (_activeGatherCommand?.Kind == WorkKind.TownUpgrade ? 1 : 0);
@@ -1871,14 +1814,12 @@ public partial class InfiniteWorld : Node2D
 
 		if (command.Kind == WorkKind.TownUpgrade && !requirementAlreadyPaid)
 		{
-			if (itemId == GameCatalog.Sticks.Id)
+			foreach (BuildingCostDefinition cost in StockpileUpgrade.Costs)
 			{
-				return currentAmount - GetStockpileUpgradeSticksCost();
-			}
-
-			if (itemId == GameCatalog.Stones.Id)
-			{
-				return currentAmount - GetStockpileUpgradeStonesCost();
+				if (cost.ItemId == itemId)
+				{
+					return currentAmount - cost.Amount;
+				}
 			}
 		}
 
@@ -1957,27 +1898,25 @@ public partial class InfiniteWorld : Node2D
 
 	private void ToggleQueuePanel()
 	{
-		if (_queuePanel is null)
+		if (_leftSidebar is null || _queuePanel is null)
 		{
 			return;
 		}
 
-		_queuePanel.Visible = !_queuePanel.Visible;
-		if (_queueToggleButton is not null)
-		{
-			_queueToggleButton.Text = _queuePanel.Visible ? "Hide Queue" : "Queue";
-		}
+		_leftSidebar.SetQueueVisible(!_queuePanel.Visible);
 
 		if (_queuePanel.Visible)
 		{
 			_queuePanelDirty = true;
 			UpdateQueuePanel();
 		}
+
+		RefreshActionPanel();
 	}
 
 	private void UpdateQueuePanel()
 	{
-		if (_queueSummaryLabel is null || _queueEntriesList is null)
+		if (_queuePanel is null)
 		{
 			return;
 		}
@@ -1994,17 +1933,13 @@ public partial class InfiniteWorld : Node2D
 
 		if (visibleCommands.Count == 0)
 		{
-			_queueSummaryLabel.Text = "No queued actions.";
-			if (_queuePanelDirty)
-			{
-				RebuildQueueEntries(new[] { "Idle" });
-			}
+			_queuePanel.SetData("No queued actions.", System.Array.Empty<string>(), false);
 			_queuePanelDirty = false;
 			return;
 		}
 
 		double totalSeconds = EstimateQueueDurationSeconds();
-		_queueSummaryLabel.Text = $"Queued: {visibleCommands.Count}  Total: {FormatDuration(totalSeconds)}";
+		string summary = $"Queued: {visibleCommands.Count}  Total: {FormatDuration(totalSeconds)}";
 
 		List<string> entries = new();
 		if (_activeGatherCommand is not null)
@@ -2017,36 +1952,9 @@ public partial class InfiniteWorld : Node2D
 			entries.Add($"{index + 1}. {FormatCommandEntry(_queuedCommands[index])}");
 		}
 
-		if (_queuePanelDirty)
-		{
-			RebuildQueueEntries(entries);
-		}
+		_queuePanel.SetData(summary, entries, true);
 
 		_queuePanelDirty = false;
-	}
-
-	private void RebuildQueueEntries(IEnumerable<string> entries)
-	{
-		if (_queueEntriesList is null)
-		{
-			return;
-		}
-
-		foreach (Node child in _queueEntriesList.GetChildren())
-		{
-			child.QueueFree();
-		}
-
-		foreach (string entry in entries)
-		{
-			Label row = new()
-			{
-				Text = entry,
-				AutowrapMode = TextServer.AutowrapMode.WordSmart,
-				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-			};
-			_queueEntriesList.AddChild(row);
-		}
 	}
 
 	private string FormatCommandEntry(GatherCommand command)
@@ -2337,7 +2245,7 @@ public partial class InfiniteWorld : Node2D
 			ProgressionTooltipText = progressionTooltip,
 			EmphasizeProgression = emphasizeProgression,
 			ActionNoteText = $"Yield: {item.DisplayName}  •  {item.SellPriceCoins}g each in town.",
-			ShowCancelAction = HasQueuedOrActiveWork(),
+			ShowCancelAction = ShouldShowSelectionCancelAction(),
 			PrimaryAction = new SelectedResourcePanelActionViewData
 			{
 				Text = $"{primaryAction.ButtonText} x{Rules.DefaultQueuedGatherAmount}",
@@ -2435,7 +2343,7 @@ public partial class InfiniteWorld : Node2D
 			ProgressionTooltipText = "Exploring gains 1 XP per second and trims explore time multiplicatively as it levels.",
 			EmphasizeProgression = missingRequirement > 0,
 			ActionNoteText = $"Surveying grants {Rules.ExploringXpPerSecond:0} XP per second and spends town stores.",
-			ShowCancelAction = HasQueuedOrActiveWork(),
+			ShowCancelAction = ShouldShowSelectionCancelAction(),
 			PrimaryAction = new SelectedResourcePanelActionViewData
 			{
 				Text = "Queue Explore",
@@ -2457,9 +2365,33 @@ public partial class InfiniteWorld : Node2D
 		}
 	}
 
+	private void RefreshActionPanel()
+	{
+		if (_selectedResourcePanel is null || !_selectedResourcePanel.Visible)
+		{
+			return;
+		}
+
+		if (_actionWorkKind == WorkKind.Explore)
+		{
+			ShowExploreActionPanel(_actionCell);
+			return;
+		}
+
+		if (!string.IsNullOrWhiteSpace(_actionResourceId))
+		{
+			ShowActionPanel(_actionCell, GameCatalog.GetResource(_actionResourceId));
+		}
+	}
+
 	private bool HasQueuedOrActiveWork()
 	{
 		return _activeGatherCommand is not null || _queuedCommands.Count > 0;
+	}
+
+	private bool ShouldShowSelectionCancelAction()
+	{
+		return HasQueuedOrActiveWork() && (_leftSidebar?.IsQueueVisible != true);
 	}
 
 	private static string FormatRequirementList(IReadOnlyList<string> requirements)
@@ -2572,7 +2504,7 @@ public partial class InfiniteWorld : Node2D
 			StockpileCapacity = _townState.StockpileCapacity,
 			StockpileSummary = $"Stockpile {_townState.GetStoredCountTotal()}/{_townState.StockpileCapacity}   Lv.{_townState.StockpileLevel}",
 			StockpileUpgradeSummary =
-				$"Next: {GetNextStockpileCapacity()} cap   |   {GetStockpileUpgradeSticksCost()} sticks   |   {GetStockpileUpgradeStonesCost()} stones   |   {GetStockpileUpgradeDurationSeconds():0}s",
+				$"Next: {GetNextStockpileCapacity()} cap   |   {BuildStockpileUpgradeCostSummary()}   |   {GetStockpileUpgradeDurationSeconds():0}s",
 			CanUpgradeStockpile = CanQueueStockpileUpgrade(),
 			Resources = resources,
 			SellPrompt = BuildSellPrompt(),
@@ -2748,10 +2680,16 @@ public partial class InfiniteWorld : Node2D
 
 	private bool CanQueueStockpileUpgrade()
 	{
-		int sticksShortfall = System.Math.Max(0, GetStockpileUpgradeSticksCost() - GetProjectedTownItemCount(GameCatalog.Sticks.Id));
-		int stonesShortfall = System.Math.Max(0, GetStockpileUpgradeStonesCost() - GetProjectedTownItemCount(GameCatalog.Stones.Id));
-		return (sticksShortfall == 0 || BuildGatherCommandForItem(GameCatalog.Sticks.Id, sticksShortfall) is not null) &&
-			(stonesShortfall == 0 || BuildGatherCommandForItem(GameCatalog.Stones.Id, stonesShortfall) is not null);
+		foreach (BuildingCostDefinition cost in StockpileUpgrade.Costs)
+		{
+			int shortfall = System.Math.Max(0, cost.Amount - GetProjectedTownItemCount(cost.ItemId));
+			if (shortfall > 0 && BuildGatherCommandForItem(cost.ItemId, shortfall) is null)
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	private void OnStockpileUpgradePressed()
@@ -3071,9 +3009,9 @@ public partial class InfiniteWorld : Node2D
 				return;
 			}
 
-			HideActionPanel();
 			UpdateTownPanel();
 			UpdateQueuePanel();
+			RefreshActionPanel();
 			UpdateStatus(statusMessage);
 			return;
 		}
@@ -3094,9 +3032,9 @@ public partial class InfiniteWorld : Node2D
 
 		GatherCommand command = CreateGatherCommand(_actionResourceId, action.Id, _actionCell, Rules.DefaultQueuedGatherAmount);
 		EnqueueCommand(command);
-		HideActionPanel();
 		UpdateTownPanel();
 		UpdateQueuePanel();
+		RefreshActionPanel();
 
 		UpdateStatus($"Queued {action.ButtonText.ToLowerInvariant()} x{Rules.DefaultQueuedGatherAmount} at ({_actionCell.X}, {_actionCell.Y}).");
 	}
