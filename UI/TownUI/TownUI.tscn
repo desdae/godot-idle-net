@@ -8,10 +8,6 @@
 
 [node name="TownUI" type="Control"]
 visible = false
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
 theme = ExtResource("5_theme")
 script = ExtResource("1_script")
 BuildingCardScene = ExtResource("3_card")
@@ -19,43 +15,44 @@ CostRowScene = ExtResource("4_cost")
 
 [node name="Frame" type="PanelContainer" parent="."]
 layout_mode = 1
-offset_left = 688.0
-offset_top = 10.0
-offset_right = 1260.0
-offset_bottom = 706.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+clip_contents = true
 
 [node name="OuterMargin" type="MarginContainer" parent="Frame"]
 layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
 
 [node name="RootColumn" type="VBoxContainer" parent="Frame/OuterMargin"]
 layout_mode = 2
-theme_override_constants/separation = 6
+size_flags_vertical = 3
+theme_override_constants/separation = 5
 
 [node name="HeaderPanel" type="PanelContainer" parent="Frame/OuterMargin/RootColumn"]
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 44)
 
 [node name="HeaderMargin" type="MarginContainer" parent="Frame/OuterMargin/RootColumn/HeaderPanel"]
 layout_mode = 2
-theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 5
-theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 5
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 4
 
 [node name="HeaderRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/HeaderPanel/HeaderMargin"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 8
 
 [node name="CrestFrame" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderRow"]
-custom_minimum_size = Vector2(34, 34)
+custom_minimum_size = Vector2(30, 30)
 
 [node name="CrestGlyph" type="Label" parent="Frame/OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderRow/CrestFrame"]
 layout_mode = 0
-offset_right = 34.0
-offset_bottom = 34.0
+offset_right = 30.0
+offset_bottom = 30.0
 text = "*"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -66,150 +63,239 @@ text = "Starter Town"
 vertical_alignment = 1
 
 [node name="GoldPanel" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderRow"]
-custom_minimum_size = Vector2(128, 34)
+custom_minimum_size = Vector2(116, 30)
 
 [node name="GoldLabel" type="Label" parent="Frame/OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderRow/GoldPanel"]
 layout_mode = 0
-offset_right = 128.0
-offset_bottom = 34.0
+offset_right = 116.0
+offset_bottom = 30.0
 text = "o 0"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="CommercePanel" type="PanelContainer" parent="Frame/OuterMargin/RootColumn"]
+[node name="BodyScroll" type="ScrollContainer" parent="Frame/OuterMargin/RootColumn"]
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
 
-[node name="CommerceMargin" type="MarginContainer" parent="Frame/OuterMargin/RootColumn/CommercePanel"]
+[node name="BodyMargin" type="MarginContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll"]
 layout_mode = 2
-theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 8
+size_flags_horizontal = 3
+theme_override_constants/margin_top = 1
+theme_override_constants/margin_bottom = 1
 
-[node name="CommerceColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin"]
+[node name="BodyColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin"]
 layout_mode = 2
-theme_override_constants/separation = 6
+size_flags_horizontal = 3
+theme_override_constants/separation = 5
 
-[node name="StockpileLabel" type="Label" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn"]
+[node name="CommercePanel" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn"]
+
+[node name="CommerceMargin" type="MarginContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="CommerceColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="StockpileLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn"]
 text = "Stockpile 0/100"
 
-[node name="StockpileBar" type="ProgressBar" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn"]
-custom_minimum_size = Vector2(0, 16)
+[node name="StockpileBar" type="ProgressBar" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn"]
+custom_minimum_size = Vector2(0, 14)
 show_percentage = false
 
-[node name="StockpileMetaRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn"]
+[node name="StockpileMetaRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn"]
 theme_override_constants/separation = 8
 
-[node name="StockpileUpgradeLabel" type="Label" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileMetaRow"]
+[node name="StockpileUpgradeLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileMetaRow"]
 size_flags_horizontal = 3
 autowrap_mode = 2
 text = "Upgrade summary"
 
-[node name="StockpileUpgradeButton" type="Button" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileMetaRow"]
-custom_minimum_size = Vector2(154, 30)
+[node name="StockpileUpgradeButton" type="Button" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileMetaRow"]
+custom_minimum_size = Vector2(136, 28)
 text = "Queue Upgrade"
 
-[node name="CommerceRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn"]
-theme_override_constants/separation = 8
+[node name="CommerceRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn"]
+theme_override_constants/separation = 6
 
-[node name="ResourceColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow"]
+[node name="ResourceColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow"]
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="ResourceHeadingLabel" type="Label" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/ResourceColumn"]
+[node name="ResourceHeadingLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/ResourceColumn"]
 text = "Stockyard"
 
-[node name="ResourceList" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/ResourceColumn"]
+[node name="ResourceList" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/ResourceColumn"]
 theme_override_constants/separation = 3
 
-[node name="CommerceDivider" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow"]
+[node name="CommerceDivider" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow"]
 custom_minimum_size = Vector2(2, 0)
 size_flags_vertical = 3
 
-[node name="SellColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow"]
-custom_minimum_size = Vector2(188, 0)
+[node name="SellColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow"]
+custom_minimum_size = Vector2(156, 0)
 theme_override_constants/separation = 4
 
-[node name="SellHeadingLabel" type="Label" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn"]
+[node name="SellHeadingLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn"]
 text = "Market Board"
 
-[node name="SellPromptLabel" type="Label" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn"]
+[node name="SellPromptLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn"]
 autowrap_mode = 2
 text = "Select a resource to sell"
 
-[node name="SellSummaryRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn"]
+[node name="SellSummaryRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn"]
 
-[node name="SellSummarySpacer" type="Control" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellSummaryRow"]
+[node name="SellSummarySpacer" type="Control" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellSummaryRow"]
 size_flags_horizontal = 3
 
-[node name="SellValueLabel" type="Label" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellSummaryRow"]
+[node name="SellValueLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellSummaryRow"]
 text = "0%"
 
-[node name="SellSlider" type="HSlider" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn"]
+[node name="SellSlider" type="HSlider" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn"]
 max_value = 100.0
 step = 5.0
 
-[node name="SellButton" type="Button" parent="Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn"]
-custom_minimum_size = Vector2(0, 36)
+[node name="SellButton" type="Button" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn"]
+custom_minimum_size = Vector2(0, 32)
 text = "Sell"
 
-[node name="BuildPanel" type="PanelContainer" parent="Frame/OuterMargin/RootColumn"]
-size_flags_vertical = 3
+[node name="OverviewPanel" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn"]
 
-[node name="BuildMargin" type="MarginContainer" parent="Frame/OuterMargin/RootColumn/BuildPanel"]
+[node name="OverviewMargin" type="MarginContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel"]
 layout_mode = 2
-theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
 
-[node name="BuildColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin"]
+[node name="OverviewColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin"]
 layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 6
+theme_override_constants/separation = 5
 
-[node name="BuildTopRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn"]
+[node name="OverviewHeaderRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn"]
 theme_override_constants/separation = 8
 
-[node name="BuildHeader" parent="Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow" instance=ExtResource("2_header")]
+[node name="OverviewHeadingLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewHeaderRow"]
+size_flags_horizontal = 3
+text = "Town Works"
+
+[node name="OpenWorksButton" type="Button" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewHeaderRow"]
+custom_minimum_size = Vector2(122, 28)
+text = "Open Works"
+
+[node name="OverviewStatsRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn"]
+theme_override_constants/separation = 6
+
+[node name="StructuresChip" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewStatsRow"]
+size_flags_horizontal = 3
+
+[node name="StructuresValueLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewStatsRow/StructuresChip"]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 6.0
+offset_right = 102.0
+offset_bottom = 24.0
+text = "Structures 0/0"
+
+[node name="ProjectsChip" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewStatsRow"]
+size_flags_horizontal = 3
+
+[node name="ProjectsValueLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewStatsRow/ProjectsChip"]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 6.0
+offset_right = 94.0
+offset_bottom = 24.0
+text = "Projects 0"
+
+[node name="BuilderChip" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewStatsRow"]
+size_flags_horizontal = 3
+
+[node name="BuilderValueLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewStatsRow/BuilderChip"]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 6.0
+offset_right = 88.0
+offset_bottom = 24.0
+text = "Builder Lv.1"
+
+[node name="OverviewSummaryPanel" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn"]
+
+[node name="OverviewSummaryMargin" type="MarginContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewSummaryPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="OverviewSummaryColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewSummaryPanel/OverviewSummaryMargin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OverviewSummaryLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewSummaryPanel/OverviewSummaryMargin/OverviewSummaryColumn"]
+autowrap_mode = 2
+text = "No works queued."
+
+[node name="OverviewHintLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewSummaryPanel/OverviewSummaryMargin/OverviewSummaryColumn"]
+autowrap_mode = 2
+text = "Open Works to plan buildings and upgrades."
+
+[node name="BuildPanel" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn"]
+
+[node name="BuildMargin" type="MarginContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="BuildColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="BuildTopRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn"]
+theme_override_constants/separation = 6
+
+[node name="BuildHeader" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow" instance=ExtResource("2_header")]
 size_flags_horizontal = 3
 TitleText = "Build & Upgrade"
 GemGlyph = "@"
 
-[node name="FilterFrame" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow"]
-custom_minimum_size = Vector2(176, 0)
+[node name="FilterFrame" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow"]
+custom_minimum_size = Vector2(156, 0)
 
-[node name="FilterMargin" type="MarginContainer" parent="Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame"]
+[node name="FilterMargin" type="MarginContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame"]
 layout_mode = 2
 theme_override_constants/margin_left = 3
 theme_override_constants/margin_top = 3
 theme_override_constants/margin_right = 3
 theme_override_constants/margin_bottom = 3
 
-[node name="FilterRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin"]
+[node name="FilterRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin"]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="AllButton" type="Button" parent="Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow"]
+[node name="AllButton" type="Button" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow"]
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 26)
+custom_minimum_size = Vector2(0, 24)
 text = "All"
 
-[node name="AvailableButton" type="Button" parent="Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow"]
+[node name="AvailableButton" type="Button" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow"]
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 26)
+custom_minimum_size = Vector2(0, 24)
 text = "Build"
 
-[node name="ExistingButton" type="Button" parent="Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow"]
+[node name="ExistingButton" type="Button" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow"]
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 26)
+custom_minimum_size = Vector2(0, 24)
 text = "Owned"
 
-[node name="BuildingScroll" type="ScrollContainer" parent="Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn"]
-custom_minimum_size = Vector2(0, 184)
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-
-[node name="BuildingList" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildingScroll"]
+[node name="BuildingList" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn"]
 theme_override_constants/separation = 6
 
 [node name="FooterPanel" type="PanelContainer" parent="Frame/OuterMargin/RootColumn"]
@@ -233,5 +319,5 @@ text = "Ledger"
 vertical_alignment = 1
 
 [node name="CloseButton" type="Button" parent="Frame/OuterMargin/RootColumn/FooterPanel/FooterMargin/FooterRow"]
-custom_minimum_size = Vector2(140, 26)
+custom_minimum_size = Vector2(128, 26)
 text = "Close Ledger"

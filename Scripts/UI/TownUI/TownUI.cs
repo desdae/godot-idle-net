@@ -9,6 +9,7 @@ namespace IdleNet;
 public partial class TownUI : Control
 {
     public event Action? CloseRequested;
+    public event Action? OpenWorksRequested;
     public event Action? StockpileUpgradeRequested;
     public event Action<string>? SellResourceSelected;
     public event Action<int>? SellPercentChanged;
@@ -25,6 +26,10 @@ public partial class TownUI : Control
 
     private Label? _titleLabel;
     private Label? _goldLabel;
+    private PanelContainer? _commercePanel;
+    private PanelContainer? _overviewPanel;
+    private PanelContainer? _buildPanel;
+    private PanelContainer? _footerPanel;
     private Label? _stockpileLabel;
     private ProgressBar? _stockpileBar;
     private Label? _stockpileUpgradeLabel;
@@ -38,6 +43,12 @@ public partial class TownUI : Control
     private Button? _filterAvailableButton;
     private Button? _filterExistingButton;
     private VBoxContainer? _buildingList;
+    private Label? _structuresValueLabel;
+    private Label? _projectsValueLabel;
+    private Label? _builderValueLabel;
+    private Label? _overviewSummaryLabel;
+    private Label? _overviewHintLabel;
+    private Button? _openWorksButton;
     private Label? _ledgerLabel;
     private Button? _closeButton;
 
@@ -45,32 +56,45 @@ public partial class TownUI : Control
     private string? _selectedBuildingId;
     private string _resourceSignature = string.Empty;
     private string _buildingSignature = string.Empty;
+    private TownPanelMode _currentMode = TownPanelMode.Overview;
 
     public override void _Ready()
     {
         _titleLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderRow/TitleLabel");
         _goldLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderRow/GoldPanel/GoldLabel");
-        _stockpileLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileLabel");
-        _stockpileBar = GetNode<ProgressBar>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileBar");
-        _stockpileUpgradeLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileMetaRow/StockpileUpgradeLabel");
-        _stockpileUpgradeButton = GetNode<Button>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileMetaRow/StockpileUpgradeButton");
-        _resourceList = GetNode<VBoxContainer>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/ResourceColumn/ResourceList");
-        _sellPromptLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellPromptLabel");
-        _sellValueLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellSummaryRow/SellValueLabel");
-        _sellSlider = GetNode<HSlider>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellSlider");
-        _sellButton = GetNode<Button>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellButton");
-        _filterAllButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow/AllButton");
-        _filterAvailableButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow/AvailableButton");
-        _filterExistingButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow/ExistingButton");
-        _buildingList = GetNode<VBoxContainer>("Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildingScroll/BuildingList");
+        _commercePanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel");
+        _overviewPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel");
+        _buildPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel");
+        _footerPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/FooterPanel");
+        _stockpileLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileLabel");
+        _stockpileBar = GetNode<ProgressBar>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileBar");
+        _stockpileUpgradeLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileMetaRow/StockpileUpgradeLabel");
+        _stockpileUpgradeButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileMetaRow/StockpileUpgradeButton");
+        _resourceList = GetNode<VBoxContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/ResourceColumn/ResourceList");
+        _sellPromptLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellPromptLabel");
+        _sellValueLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellSummaryRow/SellValueLabel");
+        _sellSlider = GetNode<HSlider>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellSlider");
+        _sellButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellButton");
+        _filterAllButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow/AllButton");
+        _filterAvailableButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow/AvailableButton");
+        _filterExistingButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow/ExistingButton");
+        _buildingList = GetNode<VBoxContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildingList");
+        _structuresValueLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewStatsRow/StructuresChip/StructuresValueLabel");
+        _projectsValueLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewStatsRow/ProjectsChip/ProjectsValueLabel");
+        _builderValueLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewStatsRow/BuilderChip/BuilderValueLabel");
+        _overviewSummaryLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewSummaryPanel/OverviewSummaryMargin/OverviewSummaryColumn/OverviewSummaryLabel");
+        _overviewHintLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewSummaryPanel/OverviewSummaryMargin/OverviewSummaryColumn/OverviewHintLabel");
+        _openWorksButton = GetNode<Button>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewHeaderRow/OpenWorksButton");
         _ledgerLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/FooterPanel/FooterMargin/FooterRow/LedgerLabel");
         _closeButton = GetNode<Button>("Frame/OuterMargin/RootColumn/FooterPanel/FooterMargin/FooterRow/CloseButton");
 
         ApplyRootStyle();
+        ApplyPanelMode();
 
         _stockpileUpgradeButton!.Pressed += () => StockpileUpgradeRequested?.Invoke();
         _sellSlider!.ValueChanged += value => SellPercentChanged?.Invoke(Mathf.RoundToInt((float)value));
         _sellButton!.Pressed += () => SellRequested?.Invoke();
+        _openWorksButton!.Pressed += () => OpenWorksRequested?.Invoke();
         _filterAllButton!.Pressed += () => FilterChanged?.Invoke(TownBuildingFilter.All);
         _filterAvailableButton!.Pressed += () => FilterChanged?.Invoke(TownBuildingFilter.Available);
         _filterExistingButton!.Pressed += () => FilterChanged?.Invoke(TownBuildingFilter.Existing);
@@ -83,12 +107,14 @@ public partial class TownUI : Control
             _stockpileUpgradeLabel is null || _stockpileUpgradeButton is null || _resourceList is null ||
             _sellPromptLabel is null || _sellValueLabel is null || _sellSlider is null || _sellButton is null ||
             _buildingList is null || _ledgerLabel is null || _filterAllButton is null || _filterAvailableButton is null ||
-            _filterExistingButton is null || BuildingCardScene is null || CostRowScene is null)
+            _filterExistingButton is null || _structuresValueLabel is null || _projectsValueLabel is null ||
+            _builderValueLabel is null || _overviewSummaryLabel is null || _overviewHintLabel is null ||
+            BuildingCardScene is null || CostRowScene is null)
         {
             return;
         }
 
-        _titleLabel.Text = data.SettlementTitle;
+        _titleLabel.Text = _currentMode == TownPanelMode.Buildings ? "Town Works" : data.SettlementTitle;
         _goldLabel.Text = $"o {data.Gold}";
         _stockpileLabel.Text = data.StockpileSummary;
         _stockpileBar.MaxValue = data.StockpileCapacity;
@@ -103,6 +129,11 @@ public partial class TownUI : Control
         }
 
         _sellButton.Disabled = !data.CanSell;
+        _structuresValueLabel.Text = $"Structures {data.BuiltBuildings}/{data.TotalBuildings}";
+        _projectsValueLabel.Text = data.ActiveProjects > 0 ? $"Projects {data.ActiveProjects}" : "Projects idle";
+        _builderValueLabel.Text = $"Builder Lv.{data.BuilderLevel}";
+        _overviewSummaryLabel.Text = data.WorksSummary;
+        _overviewHintLabel.Text = data.WorksHint;
 
         string nextResourceSignature = BuildResourceSignature(data.Resources);
         if (nextResourceSignature != _resourceSignature)
@@ -118,7 +149,9 @@ public partial class TownUI : Control
             _buildingSignature = nextBuildingSignature;
         }
 
-        _ledgerLabel.Text = data.LedgerText;
+        _ledgerLabel.Text = _currentMode == TownPanelMode.Buildings
+            ? "Contracts, upgrades, and current worksites."
+            : data.LedgerText;
         _ledgerLabel.TooltipText = data.LedgerText.Replace("  •  ", "\n");
         UpdateFilterButtonState(data.ActiveFilter);
     }
@@ -142,6 +175,20 @@ public partial class TownUI : Control
     public void RequestClose()
     {
         CloseRequested?.Invoke();
+    }
+
+    public void RequestOpenWorks()
+    {
+        OpenWorksRequested?.Invoke();
+    }
+
+    public void SetPanelMode(TownPanelMode mode)
+    {
+        _currentMode = mode;
+        if (IsInsideTree())
+        {
+            ApplyPanelMode();
+        }
     }
 
     private void RebuildResourceRows(IReadOnlyList<TownResourceViewData> resources)
@@ -243,15 +290,21 @@ public partial class TownUI : Control
         PanelContainer headerPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/HeaderPanel");
         PanelContainer crestFrame = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderRow/CrestFrame");
         PanelContainer goldPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderRow/GoldPanel");
-        PanelContainer commercePanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/CommercePanel");
-        PanelContainer commerceDivider = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/CommerceDivider");
-        PanelContainer buildPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BuildPanel");
-        PanelContainer filterFrame = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame");
+        PanelContainer commercePanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel");
+        PanelContainer commerceDivider = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/CommerceDivider");
+        PanelContainer overviewPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel");
+        PanelContainer structuresChip = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewStatsRow/StructuresChip");
+        PanelContainer projectsChip = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewStatsRow/ProjectsChip");
+        PanelContainer builderChip = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewStatsRow/BuilderChip");
+        PanelContainer overviewSummaryPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewSummaryPanel");
+        PanelContainer buildPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel");
+        PanelContainer filterFrame = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame");
         PanelContainer footerPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/FooterPanel");
         Label crestGlyph = GetNode<Label>("Frame/OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderRow/CrestFrame/CrestGlyph");
-        Label resourceHeadingLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/ResourceColumn/ResourceHeadingLabel");
-        Label sellHeadingLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellHeadingLabel");
-        SectionHeader buildHeader = GetNode<SectionHeader>("Frame/OuterMargin/RootColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/BuildHeader");
+        Label resourceHeadingLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/ResourceColumn/ResourceHeadingLabel");
+        Label sellHeadingLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow/SellColumn/SellHeadingLabel");
+        Label overviewHeadingLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel/OverviewMargin/OverviewColumn/OverviewHeaderRow/OverviewHeadingLabel");
+        SectionHeader buildHeader = GetNode<SectionHeader>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/BuildHeader");
 
         frame.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.14f, 0.10f, 0.07f, 0.98f), new Color(0.64f, 0.48f, 0.25f, 0.94f), 24, 2, 9, 7));
         headerPanel.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.30f, 0.18f, 0.11f, 0.96f), new Color(0.79f, 0.60f, 0.32f, 0.86f), 18, 1, 8, 6));
@@ -259,6 +312,11 @@ public partial class TownUI : Control
         goldPanel.AddThemeStyleboxOverride("panel", CreateInsetStyle(new Color(0.22f, 0.15f, 0.08f, 0.95f), new Color(0.92f, 0.74f, 0.38f, 0.92f), 16));
         commercePanel.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.24f, 0.16f, 0.10f, 0.90f), new Color(0.61f, 0.45f, 0.24f, 0.76f), 18, 1, 8, 8));
         commerceDivider.AddThemeStyleboxOverride("panel", CreateDividerStyle());
+        overviewPanel.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.22f, 0.15f, 0.10f, 0.90f), new Color(0.60f, 0.45f, 0.25f, 0.76f), 18, 1, 8, 8));
+        structuresChip.AddThemeStyleboxOverride("panel", CreateInsetStyle(new Color(0.27f, 0.19f, 0.12f, 0.86f), new Color(0.70f, 0.58f, 0.31f, 0.82f), 12));
+        projectsChip.AddThemeStyleboxOverride("panel", CreateInsetStyle(new Color(0.27f, 0.19f, 0.12f, 0.86f), new Color(0.70f, 0.58f, 0.31f, 0.82f), 12));
+        builderChip.AddThemeStyleboxOverride("panel", CreateInsetStyle(new Color(0.27f, 0.19f, 0.12f, 0.86f), new Color(0.70f, 0.58f, 0.31f, 0.82f), 12));
+        overviewSummaryPanel.AddThemeStyleboxOverride("panel", CreateInsetStyle(new Color(0.18f, 0.13f, 0.09f, 0.88f), new Color(0.52f, 0.40f, 0.22f, 0.70f), 14));
         buildPanel.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.20f, 0.14f, 0.10f, 0.90f), new Color(0.60f, 0.45f, 0.26f, 0.78f), 18, 1, 8, 8));
         filterFrame.AddThemeStyleboxOverride("panel", CreateInsetStyle(new Color(0.22f, 0.16f, 0.10f, 0.85f), new Color(0.57f, 0.42f, 0.23f, 0.70f), 14));
         footerPanel.AddThemeStyleboxOverride("panel", CreateFancyPanelStyle(new Color(0.18f, 0.13f, 0.09f, 0.88f), new Color(0.49f, 0.36f, 0.20f, 0.70f), 14, 1, 6, 4));
@@ -279,6 +337,7 @@ public partial class TownUI : Control
 
         ApplySmallHeadingStyle(resourceHeadingLabel);
         ApplySmallHeadingStyle(sellHeadingLabel);
+        ApplySmallHeadingStyle(overviewHeadingLabel);
 
         _stockpileLabel?.AddThemeColorOverride("font_color", new Color(0.97f, 0.90f, 0.77f));
         _stockpileLabel?.AddThemeFontSizeOverride("font_size", 17);
@@ -288,6 +347,16 @@ public partial class TownUI : Control
         _sellPromptLabel?.AddThemeFontSizeOverride("font_size", 13);
         _sellValueLabel?.AddThemeColorOverride("font_color", new Color(0.99f, 0.88f, 0.64f));
         _sellValueLabel?.AddThemeFontSizeOverride("font_size", 14);
+        _structuresValueLabel?.AddThemeColorOverride("font_color", new Color(0.96f, 0.90f, 0.78f));
+        _structuresValueLabel?.AddThemeFontSizeOverride("font_size", 12);
+        _projectsValueLabel?.AddThemeColorOverride("font_color", new Color(0.96f, 0.90f, 0.78f));
+        _projectsValueLabel?.AddThemeFontSizeOverride("font_size", 12);
+        _builderValueLabel?.AddThemeColorOverride("font_color", new Color(0.96f, 0.90f, 0.78f));
+        _builderValueLabel?.AddThemeFontSizeOverride("font_size", 12);
+        _overviewSummaryLabel?.AddThemeColorOverride("font_color", new Color(0.95f, 0.89f, 0.78f));
+        _overviewSummaryLabel?.AddThemeFontSizeOverride("font_size", 13);
+        _overviewHintLabel?.AddThemeColorOverride("font_color", new Color(0.82f, 0.78f, 0.72f));
+        _overviewHintLabel?.AddThemeFontSizeOverride("font_size", 12);
         _ledgerLabel?.AddThemeColorOverride("font_color", new Color(0.88f, 0.82f, 0.74f));
         _ledgerLabel?.AddThemeFontSizeOverride("font_size", 12);
 
@@ -306,12 +375,43 @@ public partial class TownUI : Control
             _sellSlider.AddThemeIconOverride("grabber_highlight", CreateSliderKnobTexture(new Color(0.98f, 0.89f, 0.66f)));
         }
 
-        ApplyButtonStyle(_stockpileUpgradeButton, false, new Vector2(154.0f, 30.0f), 12);
+        ApplyButtonStyle(_stockpileUpgradeButton, false, new Vector2(136.0f, 28.0f), 12);
+        ApplyButtonStyle(_openWorksButton, false, new Vector2(122.0f, 28.0f), 12);
         ApplyButtonStyle(_sellButton, true, new Vector2(0.0f, 36.0f), 17);
         ApplyButtonStyle(_filterAllButton, false, new Vector2(0.0f, 26.0f), 12);
         ApplyButtonStyle(_filterAvailableButton, false, new Vector2(0.0f, 26.0f), 12);
         ApplyButtonStyle(_filterExistingButton, false, new Vector2(0.0f, 26.0f), 12);
-        ApplyButtonStyle(_closeButton, false, new Vector2(140.0f, 26.0f), 13);
+        ApplyButtonStyle(_closeButton, false, new Vector2(128.0f, 26.0f), 13);
+    }
+
+    private void ApplyPanelMode()
+    {
+        if (_titleLabel is null || _commercePanel is null || _overviewPanel is null || _buildPanel is null || _footerPanel is null || _closeButton is null || _ledgerLabel is null)
+        {
+            return;
+        }
+
+        bool showCommerce = _currentMode == TownPanelMode.Overview;
+        bool showOverview = _currentMode == TownPanelMode.Overview;
+        bool showBuild = _currentMode == TownPanelMode.Buildings;
+
+        _commercePanel.Visible = showCommerce;
+        _overviewPanel.Visible = showOverview;
+        _buildPanel.Visible = showBuild;
+        _footerPanel.Visible = true;
+
+        switch (_currentMode)
+        {
+            case TownPanelMode.Buildings:
+                _titleLabel.Text = "Town Works";
+                _ledgerLabel.Text = "Contracts, upgrades, and current worksites.";
+                _closeButton.Text = "Close Works";
+                break;
+            default:
+                _titleLabel.Text = "Starter Town";
+                _closeButton.Text = "Close Ledger";
+                break;
+        }
     }
 
     private void UpdateFilterButtonState(TownBuildingFilter activeFilter)

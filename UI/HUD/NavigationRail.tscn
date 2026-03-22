@@ -1,0 +1,49 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/HUD/NavigationRail.cs" id="1_script"]
+[ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="2_theme"]
+
+[node name="NavigationRail" type="PanelContainer"]
+custom_minimum_size = Vector2(88, 0)
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="OuterMargin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="RootColumn" type="VBoxContainer" parent="OuterMargin"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="SelectionButton" type="Button" parent="OuterMargin/RootColumn"]
+custom_minimum_size = Vector2(0, 58)
+text = "Select"
+tooltip_text = "Selection"
+
+[node name="QueueButton" type="Button" parent="OuterMargin/RootColumn"]
+custom_minimum_size = Vector2(0, 58)
+text = "Queue"
+tooltip_text = "Action Queue"
+
+[node name="TownButton" type="Button" parent="OuterMargin/RootColumn"]
+custom_minimum_size = Vector2(0, 58)
+text = "Town"
+tooltip_text = "Town Ledger"
+
+[node name="BuildingsButton" type="Button" parent="OuterMargin/RootColumn"]
+custom_minimum_size = Vector2(0, 58)
+text = "Build"
+tooltip_text = "Buildings"
+
+[node name="PeopleButton" type="Button" parent="OuterMargin/RootColumn"]
+custom_minimum_size = Vector2(0, 58)
+text = "People"
+tooltip_text = "Worker Roster"
+
+[node name="BottomSpacer" type="Control" parent="OuterMargin/RootColumn"]
+size_flags_vertical = 3

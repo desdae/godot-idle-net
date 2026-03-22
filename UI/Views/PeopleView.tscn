@@ -1,0 +1,80 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/Views/PeopleView.cs" id="1_script"]
+[ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="2_theme"]
+
+[node name="PeopleView" type="PanelContainer"]
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="OuterMargin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="RootColumn" type="VBoxContainer" parent="OuterMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HeaderRow" type="HBoxContainer" parent="OuterMargin/RootColumn"]
+theme_override_constants/separation = 8
+
+[node name="TitleLabel" type="Label" parent="OuterMargin/RootColumn/HeaderRow"]
+text = "Wayfarer"
+size_flags_horizontal = 3
+
+[node name="SummaryPanel" type="PanelContainer" parent="OuterMargin/RootColumn"]
+
+[node name="SummaryMargin" type="MarginContainer" parent="OuterMargin/RootColumn/SummaryPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="SummaryLabel" type="Label" parent="OuterMargin/RootColumn/SummaryPanel/SummaryMargin"]
+layout_mode = 2
+autowrap_mode = 2
+text = "Position, bag, and current duty will appear here."
+
+[node name="SkillsPanel" type="PanelContainer" parent="OuterMargin/RootColumn"]
+size_flags_vertical = 3
+
+[node name="SkillsMargin" type="MarginContainer" parent="OuterMargin/RootColumn/SkillsPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="SkillsColumn" type="VBoxContainer" parent="OuterMargin/RootColumn/SkillsPanel/SkillsMargin"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="SkillsHeading" type="Label" parent="OuterMargin/RootColumn/SkillsPanel/SkillsMargin/SkillsColumn"]
+text = "Skills"
+
+[node name="SkillsScroll" type="ScrollContainer" parent="OuterMargin/RootColumn/SkillsPanel/SkillsMargin/SkillsColumn"]
+custom_minimum_size = Vector2(0, 240)
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="SkillsList" type="VBoxContainer" parent="OuterMargin/RootColumn/SkillsPanel/SkillsMargin/SkillsColumn/SkillsScroll"]
+theme_override_constants/separation = 6
+
+[node name="FooterPanel" type="PanelContainer" parent="OuterMargin/RootColumn"]
+
+[node name="FooterMargin" type="MarginContainer" parent="OuterMargin/RootColumn/FooterPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="FooterLabel" type="Label" parent="OuterMargin/RootColumn/FooterPanel/FooterMargin"]
+layout_mode = 2
+autowrap_mode = 2
+text = "Future recruits, jobs, and assignments will appear here."

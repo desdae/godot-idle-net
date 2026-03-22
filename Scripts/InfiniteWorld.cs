@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using Godot;
 
@@ -50,29 +51,12 @@ public partial class InfiniteWorld : Node2D
 	private Label? _coordsLabel;
 	private Label? _statusLabel;
 	private Label? _hintLabel;
-	private LeftSidebar? _leftSidebar;
+	private GameHUD? _gameHud;
+	private SelectionView? _selectionView;
 	private SelectedResourcePanel? _selectedResourcePanel;
 	private QueuePanel? _queuePanel;
 	private TownUI? _townUi;
-	private PanelContainer? _townPanel;
-	private Label? _townBody;
-	private Label? _townGoldLabel;
-	private ScrollContainer? _townInfoScroll;
-	private PanelContainer? _characterPanel;
-	private Label? _characterSummaryLabel;
-	private VBoxContainer? _characterSkillsList;
-	private readonly Dictionary<string, Label> _skillLevelLabels = new();
-	private readonly Dictionary<string, Label> _skillXpLabels = new();
-	private readonly Dictionary<string, ProgressBar> _skillProgressBars = new();
-	private ProgressBar? _stockpileProgressBar;
-	private Label? _stockpileProgressLabel;
-	private Label? _stockpileUpgradeLabel;
-	private Button? _stockpileUpgradeButton;
-	private ItemList? _sellItemList;
-	private Label? _sellSelectionLabel;
-	private HSlider? _sellPercentSlider;
-	private Label? _sellPercentLabel;
-	private Button? _sellButton;
+	private PeopleView? _peopleView;
 	private string? _selectedSellItemId;
 	private int _selectedSellPercent;
 	private TownBuildingFilter _activeBuildingFilter = TownBuildingFilter.All;
@@ -98,13 +82,20 @@ public partial class InfiniteWorld : Node2D
 	public override void _Ready()
 	{
 		_player = GetNode<PlayerController>("Player");
-		_coordsLabel = GetNode<Label>("Hud/CoordsLabel");
-		_hintLabel = GetNode<Label>("Hud/HintLabel");
-		_townUi = GetNode<TownUI>("Hud/TownUI");
+		_gameHud = GetNode<GameHUD>("Hud/GameHUD");
+		_coordsLabel = _gameHud.CoordsLabel;
+		_hintLabel = _gameHud.HintLabel;
+		_statusLabel = _gameHud.StatusLabel;
+		_townUi = _gameHud.TownUI;
+		_selectionView = _gameHud.GetNode<SelectionView>("RootMargin/RootColumn/MiddleRow/LeftDock/ContentFrame/ContentHost/SelectionView");
+		_peopleView = _gameHud.PeopleView;
 
 		_player.Initialize(PlayerStartCell, Rules.TileSize);
 		InitializeExploration();
-		_hintLabel.Text = $"Click the character, town, or a resource tile.\nMovement and gathering take 2 seconds. Bag: {_characterState.BagCapacity}. Stockpile: {_townState.StockpileCapacity}.";
+		if (_hintLabel is not null)
+		{
+			_hintLabel.Text = $"Inspect resources, towns, and villagers from the ledger rail. Bag {_characterState.BagCapacity}  Stockpile {_townState.StockpileCapacity}.";
+		}
 
 		CreateHudPanels();
 		ConnectTownUi();
@@ -121,17 +112,17 @@ public partial class InfiniteWorld : Node2D
 		ProcessGatherCommand(delta);
 		UpdatePlayerProgressBar();
 
-		if (_townUi?.Visible == true)
+		if (_gameHud?.CurrentSection is HudSection.Town or HudSection.Buildings)
 		{
 			UpdateTownPanel();
 		}
 
-		if (_characterPanel?.Visible == true)
+		if (_gameHud?.CurrentSection == HudSection.People)
 		{
 			UpdateCharacterPanel();
 		}
 
-		if (_queuePanel?.Visible == true)
+		if (_gameHud?.CurrentSection == HudSection.Queue)
 		{
 			_queueSummaryRefreshSeconds += delta;
 			if (_queuePanelDirty || _queueSummaryRefreshSeconds >= 0.25)
@@ -317,33 +308,16 @@ public partial class InfiniteWorld : Node2D
 
 	private void CreateHudPanels()
 	{
-		CanvasLayer hud = GetNode<CanvasLayer>("Hud");
-
-		_statusLabel = new Label
+		if (_gameHud is null)
 		{
-			OffsetLeft = 404.0f,
-			OffsetTop = 660.0f,
-			OffsetRight = 1180.0f,
-			OffsetBottom = 710.0f,
-			Text = string.Empty,
-		};
-		_statusLabel.AddThemeColorOverride("font_color", new Color(0.96f, 0.97f, 0.91f));
-		_statusLabel.AddThemeColorOverride("font_shadow_color", new Color(0.07f, 0.09f, 0.06f, 0.9f));
-		_statusLabel.AddThemeConstantOverride("shadow_offset_x", 2);
-		_statusLabel.AddThemeConstantOverride("shadow_offset_y", 2);
-		hud.AddChild(_statusLabel);
+			return;
+		}
 
-		PackedScene leftSidebarScene = ResourceLoader.Load<PackedScene>("res://UI/HUD/LeftSidebar.tscn");
-		_leftSidebar = leftSidebarScene.Instantiate<LeftSidebar>();
-		_leftSidebar.OffsetLeft = 16.0f;
-		_leftSidebar.OffsetTop = 92.0f;
-		_leftSidebar.OffsetRight = 388.0f;
-		_leftSidebar.OffsetBottom = 710.0f;
-		_leftSidebar.QueueToggleRequested += ToggleQueuePanel;
-		hud.AddChild(_leftSidebar);
-
-		_selectedResourcePanel = _leftSidebar.SelectedResourcePanel;
-		_queuePanel = _leftSidebar.QueuePanel;
+		_gameHud.SectionChanged += OnHudSectionChanged;
+		_selectedResourcePanel = _gameHud.SelectedResourcePanel;
+		_queuePanel = _gameHud.QueuePanel;
+		_townUi = _gameHud.TownUI;
+		_peopleView = _gameHud.PeopleView;
 
 		if (_selectedResourcePanel is not null)
 		{
@@ -355,389 +329,11 @@ public partial class InfiniteWorld : Node2D
 
 		if (_queuePanel is not null)
 		{
-			_queuePanel.Visible = false;
 			_queuePanel.ClearRequested += ClearGatherCommand;
+			_queuePanel.Visible = true;
 		}
 
-		_townPanel = new PanelContainer
-		{
-			Visible = false,
-			OffsetLeft = 860.0f,
-			OffsetTop = 72.0f,
-			OffsetRight = 1260.0f,
-			OffsetBottom = 706.0f,
-		};
-		_townPanel.AddThemeStyleboxOverride("panel", CreatePanelStyle(
-			new Color(0.19f, 0.13f, 0.09f, 0.96f),
-			new Color(0.54f, 0.40f, 0.22f, 0.95f),
-			18,
-			2,
-			new Color(0.06f, 0.04f, 0.03f, 0.65f)));
-
-		VBoxContainer townBox = new();
-		townBox.AddThemeConstantOverride("separation", 10);
-		townBox.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-		townBox.OffsetLeft = 16.0f;
-		townBox.OffsetTop = 16.0f;
-		townBox.OffsetRight = -16.0f;
-		townBox.OffsetBottom = -16.0f;
-
-		PanelContainer townHeaderPanel = new();
-		townHeaderPanel.AddThemeStyleboxOverride("panel", CreateInsetPanelStyle(
-			new Color(0.29f, 0.18f, 0.12f, 0.88f),
-			new Color(0.62f, 0.49f, 0.28f, 0.90f)));
-
-		HBoxContainer townHeader = new();
-		townHeader.AddThemeConstantOverride("separation", 10);
-		townHeader.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-		townHeader.OffsetLeft = 14.0f;
-		townHeader.OffsetTop = 10.0f;
-		townHeader.OffsetRight = -14.0f;
-		townHeader.OffsetBottom = -10.0f;
-
-		Label townTitle = new()
-		{
-			Text = "Starter Town",
-			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-			VerticalAlignment = VerticalAlignment.Center,
-		};
-		ApplyTownTitleStyle(townTitle);
-
-		_townGoldLabel = new Label
-		{
-			Text = "Gold 0",
-			HorizontalAlignment = HorizontalAlignment.Right,
-			VerticalAlignment = VerticalAlignment.Center,
-			CustomMinimumSize = new Vector2(100.0f, 0.0f),
-		};
-		ApplyTownGoldStyle(_townGoldLabel);
-
-		townHeader.AddChild(townTitle);
-		townHeader.AddChild(_townGoldLabel);
-		townHeaderPanel.AddChild(townHeader);
-
-		PanelContainer stockpilePanel = new();
-		stockpilePanel.AddThemeStyleboxOverride("panel", CreateInsetPanelStyle(
-			new Color(0.23f, 0.16f, 0.11f, 0.84f),
-			new Color(0.56f, 0.42f, 0.24f, 0.82f)));
-
-		VBoxContainer stockpileBox = new();
-		stockpileBox.AddThemeConstantOverride("separation", 8);
-		stockpileBox.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-		stockpileBox.OffsetLeft = 14.0f;
-		stockpileBox.OffsetTop = 12.0f;
-		stockpileBox.OffsetRight = -14.0f;
-		stockpileBox.OffsetBottom = -12.0f;
-
-		_stockpileProgressLabel = new Label
-		{
-			Text = "Stockpile 0/100",
-			HorizontalAlignment = HorizontalAlignment.Left,
-		};
-		ApplySectionTitleStyle(_stockpileProgressLabel);
-
-		_stockpileProgressBar = new ProgressBar
-		{
-			MinValue = 0,
-			MaxValue = _townState.StockpileCapacity,
-			Value = 0,
-			ShowPercentage = false,
-			CustomMinimumSize = new Vector2(0.0f, 22.0f),
-		};
-		_stockpileProgressBar.AddThemeStyleboxOverride("background", CreateBarBackgroundStyle());
-		_stockpileProgressBar.AddThemeStyleboxOverride("fill", CreateBarFillStyle());
-
-		_stockpileUpgradeLabel = new Label
-		{
-			AutowrapMode = TextServer.AutowrapMode.WordSmart,
-			Text = "Stockpile upgrades are available in town.",
-		};
-		ApplyBodyLabelStyle(_stockpileUpgradeLabel);
-
-		_stockpileUpgradeButton = new Button { Text = "Queue Stockpile Upgrade" };
-		_stockpileUpgradeButton.Pressed += OnStockpileUpgradePressed;
-		ApplyTownButtonStyle(_stockpileUpgradeButton, true);
-
-		stockpileBox.AddChild(_stockpileProgressLabel);
-		stockpileBox.AddChild(_stockpileProgressBar);
-		stockpileBox.AddChild(_stockpileUpgradeLabel);
-		stockpileBox.AddChild(_stockpileUpgradeButton);
-		stockpilePanel.AddChild(stockpileBox);
-
-		PanelContainer sellPanel = new();
-		sellPanel.AddThemeStyleboxOverride("panel", CreateInsetPanelStyle(
-			new Color(0.22f, 0.15f, 0.10f, 0.82f),
-			new Color(0.51f, 0.39f, 0.21f, 0.70f)));
-
-		VBoxContainer sellBox = new();
-		sellBox.AddThemeConstantOverride("separation", 8);
-		sellBox.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-		sellBox.OffsetLeft = 14.0f;
-		sellBox.OffsetTop = 12.0f;
-		sellBox.OffsetRight = -14.0f;
-		sellBox.OffsetBottom = -12.0f;
-
-		Label sellSectionTitle = new()
-		{
-			Text = "Market Board",
-		};
-		ApplySectionTitleStyle(sellSectionTitle);
-
-		_sellItemList = new ItemList
-		{
-			CustomMinimumSize = new Vector2(0.0f, 132.0f),
-			SelectMode = ItemList.SelectModeEnum.Single,
-		};
-		_sellItemList.ItemSelected += OnSellItemSelected;
-		_sellItemList.AddThemeStyleboxOverride("panel", CreatePanelStyle(
-			new Color(0.12f, 0.09f, 0.06f, 0.88f),
-			new Color(0.42f, 0.31f, 0.17f, 0.75f),
-			12,
-			1));
-		_sellItemList.AddThemeColorOverride("font_color", new Color(0.93f, 0.88f, 0.77f));
-		_sellItemList.AddThemeColorOverride("font_selected_color", new Color(0.18f, 0.10f, 0.05f));
-		_sellItemList.AddThemeColorOverride("guide_color", new Color(0.54f, 0.42f, 0.24f, 0.35f));
-		_sellItemList.AddThemeColorOverride("cursor_color", new Color(0.88f, 0.73f, 0.41f));
-		_sellItemList.AddThemeStyleboxOverride("cursor", CreatePanelStyle(
-			new Color(0.90f, 0.79f, 0.53f, 0.86f),
-			new Color(0.98f, 0.88f, 0.66f, 0.95f),
-			8,
-			1));
-
-		_sellSelectionLabel = new Label
-		{
-			Text = "Select a resource to sell",
-			AutowrapMode = TextServer.AutowrapMode.WordSmart,
-		};
-		ApplyBodyLabelStyle(_sellSelectionLabel);
-
-		HBoxContainer sellControls = new();
-		sellControls.AddThemeConstantOverride("separation", 10);
-
-		_sellPercentSlider = new HSlider
-		{
-			MinValue = 0,
-			MaxValue = 100,
-			Step = 5,
-			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-		};
-		_sellPercentSlider.ValueChanged += OnSellPercentChanged;
-		_sellPercentSlider.AddThemeStyleboxOverride("slider", CreateSliderTrackStyle());
-		_sellPercentSlider.AddThemeStyleboxOverride("grabber_area", CreateSliderFillStyle());
-		_sellPercentSlider.AddThemeStyleboxOverride("grabber_area_highlight", CreateSliderFillStyle());
-		_sellPercentSlider.AddThemeIconOverride("grabber", CreateSliderKnobTexture(new Color(0.88f, 0.78f, 0.48f)));
-		_sellPercentSlider.AddThemeIconOverride("grabber_highlight", CreateSliderKnobTexture(new Color(0.98f, 0.87f, 0.62f)));
-
-		_sellPercentLabel = new Label
-		{
-			Text = "0%",
-			CustomMinimumSize = new Vector2(52.0f, 0.0f),
-			HorizontalAlignment = HorizontalAlignment.Right,
-		};
-		ApplySectionTitleStyle(_sellPercentLabel);
-
-		sellControls.AddChild(_sellPercentSlider);
-		sellControls.AddChild(_sellPercentLabel);
-
-		_sellButton = new Button { Text = "Sell Goods" };
-		_sellButton.Pressed += SellSelectedResources;
-		ApplyTownButtonStyle(_sellButton, false);
-
-		sellBox.AddChild(sellSectionTitle);
-		sellBox.AddChild(_sellItemList);
-		sellBox.AddChild(_sellSelectionLabel);
-		sellBox.AddChild(sellControls);
-		sellBox.AddChild(_sellButton);
-		sellPanel.AddChild(sellBox);
-
-		PanelContainer infoPanel = new();
-		infoPanel.AddThemeStyleboxOverride("panel", CreateInsetPanelStyle(
-			new Color(0.21f, 0.15f, 0.10f, 0.80f),
-			new Color(0.48f, 0.36f, 0.19f, 0.64f)));
-
-		VBoxContainer infoBox = new();
-		infoBox.AddThemeConstantOverride("separation", 8);
-		infoBox.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-		infoBox.OffsetLeft = 14.0f;
-		infoBox.OffsetTop = 12.0f;
-		infoBox.OffsetRight = -14.0f;
-		infoBox.OffsetBottom = -12.0f;
-
-		Label infoSectionTitle = new()
-		{
-			Text = "Town Hall Ledger",
-		};
-		ApplySectionTitleStyle(infoSectionTitle);
-
-		_townInfoScroll = new ScrollContainer
-		{
-			CustomMinimumSize = new Vector2(0.0f, 230.0f),
-			VerticalScrollMode = ScrollContainer.ScrollMode.ShowAlways,
-			HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-			SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-		};
-		_townInfoScroll.AddThemeStyleboxOverride("panel", CreatePanelStyle(
-			new Color(0.11f, 0.08f, 0.05f, 0.55f),
-			new Color(0.39f, 0.29f, 0.15f, 0.30f),
-			10,
-			1));
-
-		_townBody = new Label
-		{
-			AutowrapMode = TextServer.AutowrapMode.WordSmart,
-			HorizontalAlignment = HorizontalAlignment.Left,
-			VerticalAlignment = VerticalAlignment.Top,
-		};
-		ApplyBodyLabelStyle(_townBody);
-		_townBody.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-		_townBody.SizeFlagsVertical = (Control.SizeFlags)0;
-		_townBody.CustomMinimumSize = new Vector2(320.0f, 0.0f);
-		_townInfoScroll.AddChild(_townBody);
-
-		infoBox.AddChild(infoSectionTitle);
-		infoBox.AddChild(_townInfoScroll);
-		infoPanel.AddChild(infoBox);
-
-		Button townCloseButton = new() { Text = "Close Ledger" };
-		townCloseButton.Pressed += HideTownPanel;
-		ApplyTownButtonStyle(townCloseButton, true);
-
-		townBox.AddChild(townHeaderPanel);
-		townBox.AddChild(stockpilePanel);
-		townBox.AddChild(sellPanel);
-		townBox.AddChild(infoPanel);
-		townBox.AddChild(townCloseButton);
-		_townPanel.AddChild(townBox);
-		hud.AddChild(_townPanel);
-
-		_characterPanel = new PanelContainer
-		{
-			Visible = false,
-			OffsetLeft = 16.0f,
-			OffsetTop = 88.0f,
-			OffsetRight = 360.0f,
-			OffsetBottom = 420.0f,
-		};
-
-		VBoxContainer characterBox = new();
-		characterBox.AddThemeConstantOverride("separation", 10);
-		characterBox.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-		characterBox.OffsetLeft = 14.0f;
-		characterBox.OffsetTop = 14.0f;
-		characterBox.OffsetRight = -14.0f;
-		characterBox.OffsetBottom = -14.0f;
-
-		Label characterTitle = new()
-		{
-			Text = "Character",
-			HorizontalAlignment = HorizontalAlignment.Center,
-		};
-
-		_characterSummaryLabel = new Label
-		{
-			AutowrapMode = TextServer.AutowrapMode.WordSmart,
-			VerticalAlignment = VerticalAlignment.Top,
-		};
-		_characterSummaryLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-
-		ScrollContainer characterSkillsScroll = new()
-		{
-			CustomMinimumSize = new Vector2(0.0f, 180.0f),
-			VerticalScrollMode = ScrollContainer.ScrollMode.ShowAlways,
-			HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-			SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-		};
-
-		_characterSkillsList = new VBoxContainer();
-		_characterSkillsList.AddThemeConstantOverride("separation", 4);
-		characterSkillsScroll.AddChild(_characterSkillsList);
-
-		foreach (SkillDefinition skill in GameCatalog.Skills)
-		{
-			AddCharacterSkillRow(skill);
-		}
-
-		Button characterCloseButton = new() { Text = "Close" };
-		characterCloseButton.Pressed += HideCharacterPanel;
-
-		characterBox.AddChild(characterTitle);
-		characterBox.AddChild(_characterSummaryLabel);
-		characterBox.AddChild(characterSkillsScroll);
-		characterBox.AddChild(characterCloseButton);
-		_characterPanel.AddChild(characterBox);
-		hud.AddChild(_characterPanel);
-	}
-
-	private void AddCharacterSkillRow(SkillDefinition skill)
-	{
-		if (_characterSkillsList is null)
-		{
-			return;
-		}
-
-		HBoxContainer row = new();
-		row.AddThemeConstantOverride("separation", 6);
-
-		Label iconLabel = new()
-		{
-			Text = skill.IconGlyph,
-			CustomMinimumSize = new Vector2(16.0f, 16.0f),
-			HorizontalAlignment = HorizontalAlignment.Center,
-			VerticalAlignment = VerticalAlignment.Center,
-		};
-		iconLabel.AddThemeColorOverride("font_color", skill.IconColor);
-
-		VBoxContainer details = new();
-		details.AddThemeConstantOverride("separation", 1);
-		details.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-
-		HBoxContainer topRow = new();
-		topRow.AddThemeConstantOverride("separation", 4);
-
-		Label nameLabel = new()
-		{
-			Text = skill.DisplayName,
-			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-		};
-
-		Label levelLabel = new()
-		{
-			Text = "Lv.1",
-			HorizontalAlignment = HorizontalAlignment.Right,
-			CustomMinimumSize = new Vector2(50.0f, 0.0f),
-		};
-
-		Label xpLabel = new()
-		{
-			Text = "0/5",
-			HorizontalAlignment = HorizontalAlignment.Right,
-			CustomMinimumSize = new Vector2(34.0f, 0.0f),
-		};
-		xpLabel.AddThemeColorOverride("font_color", new Color(0.82f, 0.85f, 0.80f));
-
-		ProgressBar progressBar = new()
-		{
-			MinValue = 0,
-			MaxValue = 5,
-			Value = 0,
-			ShowPercentage = false,
-			CustomMinimumSize = new Vector2(0.0f, 4.0f),
-			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-		};
-
-		topRow.AddChild(nameLabel);
-		topRow.AddChild(levelLabel);
-		topRow.AddChild(xpLabel);
-		details.AddChild(topRow);
-		details.AddChild(progressBar);
-
-		row.AddChild(iconLabel);
-		row.AddChild(details);
-		_characterSkillsList.AddChild(row);
-
-		_skillLevelLabels[skill.Id] = levelLabel;
-		_skillXpLabels[skill.Id] = xpLabel;
-		_skillProgressBars[skill.Id] = progressBar;
+		_selectionView?.ShowEmptyState("Selection Ledger", "Choose a resource, town, or villager to inspect work details.");
 	}
 
 	private void ConnectTownUi()
@@ -748,6 +344,7 @@ public partial class InfiniteWorld : Node2D
 		}
 
 		_townUi.CloseRequested += HideTownPanel;
+		_townUi.OpenWorksRequested += () => _gameHud?.ShowSection(HudSection.Buildings);
 		_townUi.StockpileUpgradeRequested += OnStockpileUpgradePressed;
 		_townUi.SellResourceSelected += OnTownSellResourceSelected;
 		_townUi.SellPercentChanged += OnTownSellPercentChanged;
@@ -1896,24 +1493,6 @@ public partial class InfiniteWorld : Node2D
 		return false;
 	}
 
-	private void ToggleQueuePanel()
-	{
-		if (_leftSidebar is null || _queuePanel is null)
-		{
-			return;
-		}
-
-		_leftSidebar.SetQueueVisible(!_queuePanel.Visible);
-
-		if (_queuePanel.Visible)
-		{
-			_queuePanelDirty = true;
-			UpdateQueuePanel();
-		}
-
-		RefreshActionPanel();
-	}
-
 	private void UpdateQueuePanel()
 	{
 		if (_queuePanel is null)
@@ -2255,6 +1834,8 @@ public partial class InfiniteWorld : Node2D
 			SecondaryAction = secondaryActionViewData,
 		});
 
+		_selectionView?.ShowSelectionCard();
+		_gameHud?.ShowSection(HudSection.Selection);
 		UpdateStatus($"Resource selected at ({cell.X}, {cell.Y}).");
 	}
 
@@ -2352,6 +1933,8 @@ public partial class InfiniteWorld : Node2D
 			},
 		});
 
+		_selectionView?.ShowSelectionCard();
+		_gameHud?.ShowSection(HudSection.Selection);
 		UpdateStatus($"Frontier tile selected at ({cell.X}, {cell.Y}).");
 	}
 
@@ -2363,6 +1946,8 @@ public partial class InfiniteWorld : Node2D
 		{
 			_selectedResourcePanel.HidePanel();
 		}
+
+		_selectionView?.ShowEmptyState("Selection Ledger", "Choose a resource, town, or villager to inspect work details.");
 	}
 
 	private void RefreshActionPanel()
@@ -2391,7 +1976,32 @@ public partial class InfiniteWorld : Node2D
 
 	private bool ShouldShowSelectionCancelAction()
 	{
-		return HasQueuedOrActiveWork() && (_leftSidebar?.IsQueueVisible != true);
+		return HasQueuedOrActiveWork() && (_gameHud?.CurrentSection != HudSection.Queue);
+	}
+
+	private void OnHudSectionChanged(HudSection section)
+	{
+		switch (section)
+		{
+			case HudSection.Queue:
+				_queuePanelDirty = true;
+				UpdateQueuePanel();
+				break;
+			case HudSection.Town:
+			case HudSection.Buildings:
+				UpdateTownPanel();
+				break;
+			case HudSection.People:
+				UpdateCharacterPanel();
+				break;
+			case HudSection.Selection:
+				RefreshActionPanel();
+				if (_selectedResourcePanel?.Visible != true)
+				{
+					_selectionView?.ShowEmptyState("Selection Ledger", "Choose a resource, town, or villager to inspect work details.");
+				}
+				break;
+		}
 	}
 
 	private static string FormatRequirementList(IReadOnlyList<string> requirements)
@@ -2429,34 +2039,28 @@ public partial class InfiniteWorld : Node2D
 	private void ShowTownPanel()
 	{
 		UpdateTownPanel();
-		if (_townUi is not null)
-		{
-			_townUi.Visible = true;
-		}
+		_gameHud?.ShowSection(HudSection.Town);
 	}
 
 	private void HideTownPanel()
 	{
-		if (_townUi is not null)
+		if (_gameHud?.CurrentSection is HudSection.Town or HudSection.Buildings)
 		{
-			_townUi.Visible = false;
+			_gameHud.ShowSection(HudSection.Selection);
 		}
 	}
 
 	private void ShowCharacterPanel()
 	{
 		UpdateCharacterPanel();
-		if (_characterPanel is not null)
-		{
-			_characterPanel.Visible = true;
-		}
+		_gameHud?.ShowSection(HudSection.People);
 	}
 
 	private void HideCharacterPanel()
 	{
-		if (_characterPanel is not null)
+		if (_gameHud?.CurrentSection == HudSection.People)
 		{
-			_characterPanel.Visible = false;
+			_gameHud.ShowSection(HudSection.Selection);
 		}
 	}
 
@@ -2486,15 +2090,29 @@ public partial class InfiniteWorld : Node2D
 			});
 		}
 
-		List<BuildingCardViewData> buildings = new();
+		List<BuildingCardViewData> allBuildings = new();
 		foreach (BuildingDefinition definition in GameCatalog.Buildings)
 		{
-			BuildingCardViewData card = BuildBuildingCardViewData(definition);
-			if (ShouldIncludeBuildingInFilter(card))
-			{
-				buildings.Add(card);
-			}
+			allBuildings.Add(BuildBuildingCardViewData(definition));
 		}
+
+		List<BuildingCardViewData> buildings = allBuildings.Where(ShouldIncludeBuildingInFilter).ToList();
+		int builderLevel = _characterState.GetSkillLevel(GameCatalog.Building.Id);
+		int builtBuildings = allBuildings.Count(building => building.IsBuilt);
+		int activeProjects = allBuildings.Count(building => building.IsUnderConstruction || building.StatusText == "Queued");
+		BuildingCardViewData? nextProject = allBuildings.FirstOrDefault(building => !building.IsMaxLevel && !building.IsUnderConstruction && building.StatusText != "Queued");
+		string worksSummary = activeProjects > 0
+			? $"{activeProjects} project(s) are already in motion."
+			: nextProject is null
+				? "Every available structure is already finished."
+				: nextProject.CanAct
+					? $"{nextProject.DisplayName} is ready to {nextProject.PrimaryButtonText.ToLowerInvariant()}."
+					: $"{nextProject.DisplayName} is the next milestone for town growth.";
+		string worksHint = nextProject is null
+			? "Open Works to review completed buildings, bonuses, and upgrade paths."
+			: nextProject.IsUnlocked
+				? nextProject.ActionHintText
+				: nextProject.RequirementText;
 
 		return new TownViewData
 		{
@@ -2512,6 +2130,12 @@ public partial class InfiniteWorld : Node2D
 			SellAmountText = BuildSellAmountText(),
 			CanSell = CanSellSelectedResources(),
 			Buildings = buildings,
+			BuiltBuildings = builtBuildings,
+			TotalBuildings = allBuildings.Count,
+			ActiveProjects = activeProjects,
+			BuilderLevel = builderLevel,
+			WorksSummary = worksSummary,
+			WorksHint = worksHint,
 			ActiveFilter = _activeBuildingFilter,
 			LedgerText =
 				$"Town Hall  •  Stockpile Lv.{_townState.StockpileLevel}  •  Campfire  •  Builder Lv.{_characterState.GetSkillLevel(GameCatalog.Building.Id)}",
@@ -2790,7 +2414,7 @@ public partial class InfiniteWorld : Node2D
 
 	private void UpdateCharacterPanel()
 	{
-		if (_characterSummaryLabel is null || _player is null)
+		if (_peopleView is null || _player is null)
 		{
 			return;
 		}
@@ -2810,26 +2434,28 @@ public partial class InfiniteWorld : Node2D
 			builder.Append($"{item.DisplayName} {_characterState.GetBagCount(item.Id)}");
 		}
 
-		_characterSummaryLabel.Text = builder.ToString().TrimEnd();
-
+		List<CharacterSkillViewData> skills = new();
 		foreach (SkillDefinition skill in GameCatalog.Skills)
 		{
-			if (_skillLevelLabels.TryGetValue(skill.Id, out Label? levelLabel))
+			skills.Add(new CharacterSkillViewData
 			{
-				levelLabel.Text = $"Lv.{_characterState.GetSkillLevel(skill.Id)}";
-			}
-
-			if (_skillXpLabels.TryGetValue(skill.Id, out Label? xpLabel))
-			{
-				xpLabel.Text = $"{_characterState.GetSkillXpIntoCurrentLevel(skill.Id)}/{_characterState.GetSkillXpForNextLevel(skill.Id)}";
-			}
-
-			if (_skillProgressBars.TryGetValue(skill.Id, out ProgressBar? progressBar))
-			{
-				progressBar.MaxValue = _characterState.GetSkillXpForNextLevel(skill.Id);
-				progressBar.Value = _characterState.GetSkillXpIntoCurrentLevel(skill.Id);
-			}
+				IconGlyph = skill.IconGlyph,
+				IconColor = skill.IconColor,
+				Name = skill.DisplayName,
+				Level = _characterState.GetSkillLevel(skill.Id),
+				CurrentXp = _characterState.GetSkillXpIntoCurrentLevel(skill.Id),
+				RequiredXp = _characterState.GetSkillXpForNextLevel(skill.Id),
+			});
 		}
+
+		string activeDuty = _activeGatherCommand is null ? "Idle" : _activeGatherCommand.Description;
+		_peopleView.SetData(new PeopleViewData
+		{
+			Title = "Wayfarer",
+			Summary = builder.ToString().TrimEnd(),
+			Footer = $"Current duty: {activeDuty}. Future recruits and assignments will appear here.",
+			Skills = skills,
+		});
 	}
 
 	private void SellSelectedResources()
@@ -2859,10 +2485,6 @@ public partial class InfiniteWorld : Node2D
 		int soldAmount = _townState.SellStored(item.Id, amountToSell, item.SellPriceCoins);
 		int goldEarned = soldAmount * item.SellPriceCoins;
 		_selectedSellPercent = 0;
-		if (_sellPercentSlider is not null)
-		{
-			_sellPercentSlider.Value = 0;
-		}
 
 		UpdateTownPanel();
 		UpdateStatus($"Sold {soldAmount} {item.DisplayName.ToLowerInvariant()} for {goldEarned} gold. Stockpile {_townState.GetStoredCountTotal()}/{_townState.StockpileCapacity}.");
@@ -2894,93 +2516,6 @@ public partial class InfiniteWorld : Node2D
 	private void OnTownUpgradeRequested(string buildingId)
 	{
 		QueueBuildingConstruction(buildingId, true);
-	}
-
-	private void RefreshSellList()
-	{
-		if (_sellItemList is null)
-		{
-			return;
-		}
-
-		_sellItemList.Clear();
-
-		int selectedIndex = -1;
-		for (int index = 0; index < GameCatalog.Items.Count; index++)
-		{
-			ItemDefinition item = GameCatalog.Items[index];
-			_sellItemList.AddItem($"{item.DisplayName,-7} {_townState.GetStoredCount(item.Id),3}   ({item.SellPriceCoins}g each)");
-
-			if (item.Id == _selectedSellItemId)
-			{
-				selectedIndex = index;
-			}
-		}
-
-		if (selectedIndex >= 0)
-		{
-			_sellItemList.Select(selectedIndex);
-		}
-
-		UpdateSellSelectionLabel();
-	}
-
-	private void UpdateStockpileBar()
-	{
-		if (_stockpileProgressBar is not null)
-		{
-			_stockpileProgressBar.MaxValue = _townState.StockpileCapacity;
-			_stockpileProgressBar.Value = _townState.GetStoredCountTotal();
-		}
-
-		if (_stockpileProgressLabel is not null)
-		{
-			_stockpileProgressLabel.Text = $"Stockpile {_townState.GetStoredCountTotal()}/{_townState.StockpileCapacity}";
-		}
-	}
-
-	private void OnSellItemSelected(long index)
-	{
-		if (index < 0 || index >= GameCatalog.Items.Count)
-		{
-			return;
-		}
-
-		_selectedSellItemId = GameCatalog.Items[(int)index].Id;
-		UpdateSellSelectionLabel();
-	}
-
-	private void OnSellPercentChanged(double value)
-	{
-		_selectedSellPercent = Mathf.RoundToInt((float)value);
-		if (_sellPercentLabel is not null)
-		{
-			_sellPercentLabel.Text = $"{value:0}%";
-		}
-
-		UpdateSellSelectionLabel();
-	}
-
-	private void UpdateSellSelectionLabel()
-	{
-		if (_sellSelectionLabel is null)
-		{
-			return;
-		}
-
-		if (_selectedSellItemId is null)
-		{
-			_sellSelectionLabel.Text = "Select a resource to sell";
-			return;
-		}
-
-		ItemDefinition item = GameCatalog.GetItem(_selectedSellItemId);
-		int percent = _sellPercentSlider is null ? 0 : Mathf.RoundToInt((float)_sellPercentSlider.Value);
-		int storedCount = _townState.GetStoredCount(item.Id);
-		int amountToSell = (storedCount * percent) / 100;
-		int goldValue = amountToSell * item.SellPriceCoins;
-
-		_sellSelectionLabel.Text = $"Selected: {item.DisplayName}  Sell: {amountToSell}  Gold: {goldValue}";
 	}
 
 	private void OnActionButtonPressed()

@@ -30,6 +30,18 @@ public sealed class TownViewData
 
     public required IReadOnlyList<BuildingCardViewData> Buildings { get; init; }
 
+    public required int BuiltBuildings { get; init; }
+
+    public required int TotalBuildings { get; init; }
+
+    public required int ActiveProjects { get; init; }
+
+    public required int BuilderLevel { get; init; }
+
+    public required string WorksSummary { get; init; }
+
+    public required string WorksHint { get; init; }
+
     public required TownBuildingFilter ActiveFilter { get; init; }
 
     public required string LedgerText { get; init; }
