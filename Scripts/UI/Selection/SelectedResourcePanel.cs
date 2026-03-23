@@ -7,6 +7,7 @@ public partial class SelectedResourcePanel : PanelContainer
 {
     public event Action? PrimaryActionRequested;
     public event Action? SecondaryActionRequested;
+    public event Action? TertiaryActionRequested;
     public event Action? CancelRequested;
 
     [Export]
@@ -27,6 +28,7 @@ public partial class SelectedResourcePanel : PanelContainer
     private Label? _actionNoteLabel;
     private Button? _primaryButton;
     private Button? _secondaryButton;
+    private Button? _tertiaryButton;
     private Button? _cancelButton;
     private Tween? _panelTween;
     private Tween? _primaryPulseTween;
@@ -48,12 +50,14 @@ public partial class SelectedResourcePanel : PanelContainer
         _actionNoteLabel = GetNode<Label>("OuterMargin/RootColumn/ActionNotePanel/ActionNoteMargin/ActionNoteLabel");
         _primaryButton = GetNode<Button>("OuterMargin/RootColumn/ActionButtons/PrimaryButton");
         _secondaryButton = GetNode<Button>("OuterMargin/RootColumn/ActionButtons/SecondaryButton");
+        _tertiaryButton = GetNode<Button>("OuterMargin/RootColumn/ActionButtons/TertiaryButton");
         _cancelButton = GetNode<Button>("OuterMargin/RootColumn/ActionButtons/CancelButton");
 
         MouseFilter = MouseFilterEnum.Stop;
 
         _primaryButton.Pressed += () => PrimaryActionRequested?.Invoke();
         _secondaryButton.Pressed += () => SecondaryActionRequested?.Invoke();
+        _tertiaryButton.Pressed += () => TertiaryActionRequested?.Invoke();
         _cancelButton.Pressed += () => CancelRequested?.Invoke();
     }
 
@@ -62,7 +66,7 @@ public partial class SelectedResourcePanel : PanelContainer
         if (_iconMedallion is null || _iconLabel is null || _titleLabel is null || _tagPanel is null || _tagLabel is null ||
             _subtitleLabel is null || _headerDivider is null || _statsGrid is null || _progressionPanel is null || _progressionIcon is null ||
             _progressionLabel is null || _actionNotePanel is null || _actionNoteLabel is null || _primaryButton is null || _secondaryButton is null ||
-            _cancelButton is null || StatChipScene is null)
+            _tertiaryButton is null || _cancelButton is null || StatChipScene is null)
         {
             if (!IsInsideTree())
             {
@@ -87,6 +91,7 @@ public partial class SelectedResourcePanel : PanelContainer
         Label actionNoteLabel = _actionNoteLabel!;
         Button primaryButton = _primaryButton!;
         Button secondaryButton = _secondaryButton!;
+        Button tertiaryButton = _tertiaryButton!;
         Button cancelButton = _cancelButton!;
         PackedScene statChipScene = StatChipScene!;
 
@@ -155,6 +160,7 @@ public partial class SelectedResourcePanel : PanelContainer
 
         ConfigureButton(primaryButton, data.PrimaryAction, data.AccentColor, true, new Vector2(0.0f, 40.0f), 16);
         ConfigureButton(secondaryButton, data.SecondaryAction, data.AccentColor.Darkened(0.10f), false, new Vector2(0.0f, 30.0f), 13);
+        ConfigureButton(tertiaryButton, data.TertiaryAction, data.AccentColor.Darkened(0.18f), false, new Vector2(0.0f, 28.0f), 12);
 
         cancelButton.Visible = data.ShowCancelAction;
         cancelButton.Text = data.CancelActionText;

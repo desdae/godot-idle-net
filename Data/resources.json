@@ -41,5 +41,16 @@
 	"GatherVerb": "Harvesting berries",
 	"ItemId": "berries",
 	"SkillId": "foraging"
+  },
+  {
+	"Id": "copper_ore",
+	"DisplayName": "Copper Ore",
+	"IconGlyph": "C",
+	"CategoryTag": "MINE",
+	"PanelSubtitle": "Work a shallow vein for useful reddish ore.",
+	"GatherButtonText": "Mine copper ore",
+	"GatherVerb": "Mining copper ore",
+	"ItemId": "copper_ore",
+	"SkillId": "mining"
   }
 ]

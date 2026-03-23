@@ -18,5 +18,10 @@
 	"Id": "logs",
 	"DisplayName": "Logs",
 	"SellPriceCoins": 2
+  },
+  {
+	"Id": "copper_ore",
+	"DisplayName": "Copper Ore",
+	"SellPriceCoins": 3
   }
 ]

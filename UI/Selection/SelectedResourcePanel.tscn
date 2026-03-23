@@ -119,6 +119,11 @@ visible = false
 custom_minimum_size = Vector2(0, 28)
 text = "Cut logs (Lv.10)"
 
+[node name="TertiaryButton" type="Button" parent="OuterMargin/RootColumn/ActionButtons"]
+visible = false
+custom_minimum_size = Vector2(0, 28)
+text = "Alternate action"
+
 [node name="CancelButton" type="Button" parent="OuterMargin/RootColumn/ActionButtons"]
 visible = false
 custom_minimum_size = Vector2(0, 24)

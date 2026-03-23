@@ -1,0 +1,22 @@
+[
+  {
+    "ResourceId": "tree",
+    "Weight": 10.0
+  },
+  {
+    "ResourceId": "berries",
+    "Weight": 10.0
+  },
+  {
+    "ResourceId": "stone",
+    "Weight": 10.0
+  },
+  {
+    "ResourceId": "copper_ore",
+    "Weight": 5.0
+  },
+  {
+    "ResourceId": null,
+    "Weight": 65.0
+  }
+]

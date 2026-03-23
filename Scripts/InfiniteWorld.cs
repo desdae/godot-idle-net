@@ -33,6 +33,8 @@ public partial class InfiniteWorld : Node2D
 	private static readonly Color BerryLeaf = new(0.28f, 0.58f, 0.25f);
 	private static readonly Color StoneDark = new(0.50f, 0.55f, 0.59f);
 	private static readonly Color StoneLight = new(0.69f, 0.73f, 0.77f);
+	private static readonly Color CopperDark = new(0.57f, 0.31f, 0.19f);
+	private static readonly Color CopperLight = new(0.82f, 0.50f, 0.31f);
 	private static readonly Color TownWall = new(0.72f, 0.62f, 0.45f);
 	private static readonly Color TownRoof = new(0.63f, 0.24f, 0.19f);
 	private static readonly Color TownDoor = new(0.35f, 0.21f, 0.11f);
@@ -67,6 +69,7 @@ public partial class InfiniteWorld : Node2D
 	private string? _actionResourceId;
 	private string? _actionPrimaryResourceActionId;
 	private string? _actionSecondaryResourceActionId;
+	private string? _actionTertiaryResourceActionId;
 	private WorkKind _actionWorkKind = WorkKind.Gather;
 	private GatherCommand? _activeGatherCommand;
 	private readonly List<GatherCommand> _queuedCommands = new();
@@ -391,6 +394,7 @@ public partial class InfiniteWorld : Node2D
 			_selectedResourcePanel.Visible = false;
 			_selectedResourcePanel.PrimaryActionRequested += OnActionButtonPressed;
 			_selectedResourcePanel.SecondaryActionRequested += OnSecondaryActionButtonPressed;
+			_selectedResourcePanel.TertiaryActionRequested += OnTertiaryActionButtonPressed;
 			_selectedResourcePanel.CancelRequested += ClearGatherCommand;
 		}
 
@@ -707,6 +711,15 @@ public partial class InfiniteWorld : Node2D
 		ResourceDefinition resource = GameCatalog.GetResource(_activeGatherCommand.ResourceId!);
 		ResourceActionDefinition action = GetResourceAction(resource, _activeGatherCommand.ResourceActionId);
 
+		if (_activeGatherCommand.StopWhenStockpileFull &&
+			_characterState.GetBagCount() == 0 &&
+			_player.CurrentCell == TownCell &&
+			!_townState.HasStorageSpace())
+		{
+			CompleteCurrentCommand($"{action.Verb} stopped because the stockpile is full.");
+			return;
+		}
+
 		if (_player.CurrentCell == TownCell && _characterState.GetBagCount() > 0 && _townState.HasStorageSpace())
 		{
 			_workerPhase = WorkerPhase.ReturningToTown;
@@ -714,7 +727,19 @@ public partial class InfiniteWorld : Node2D
 			return;
 		}
 
-		if (_activeGatherCommand.RemainingAmount <= 0)
+		if (_activeGatherCommand.StopWhenStockpileFull)
+		{
+			int remainingToFill = System.Math.Max(0, _townState.GetRemainingStorage() - _characterState.GetBagCount());
+			_activeGatherCommand.RemainingAmount = remainingToFill;
+
+			if (_characterState.GetBagCount() > 0 && remainingToFill <= 0)
+			{
+				_workerPhase = WorkerPhase.ReturningToTown;
+				_gatherProgressSeconds = 0.0;
+			}
+		}
+
+		if (!_activeGatherCommand.StopWhenStockpileFull && _activeGatherCommand.RemainingAmount <= 0)
 		{
 			FinishGatherCommandIfReady(resource);
 			return;
@@ -759,6 +784,14 @@ public partial class InfiniteWorld : Node2D
 			_workerPhase = WorkerPhase.ReturningToTown;
 			_gatherProgressSeconds = 0.0;
 			UpdateStatus("Bag is full. Returning to town.");
+			return;
+		}
+
+		if (_activeGatherCommand.StopWhenStockpileFull && _activeGatherCommand.RemainingAmount <= 0)
+		{
+			_workerPhase = WorkerPhase.ReturningToTown;
+			_gatherProgressSeconds = 0.0;
+			UpdateStatus("Enough materials gathered to fill the stockpile. Returning to town.");
 			return;
 		}
 
@@ -1080,8 +1113,29 @@ public partial class InfiniteWorld : Node2D
 
 		if (_characterState.GetBagCount() > 0 && !_townState.HasStorageSpace())
 		{
+			if (_activeGatherCommand is not null &&
+				_activeGatherCommand.Kind == WorkKind.Gather &&
+				_queuedCommands.Count > 0 &&
+				_queuedCommands[0].Kind == WorkKind.TownUpgrade)
+			{
+				CompleteCurrentCommand("Stockpile full. The queued upgrade needs free storage, so the blocked gather step was skipped.");
+				return;
+			}
+
 			_workerPhase = WorkerPhase.Idle;
 			UpdateStatus($"Stockpile full. Stored {moved} item(s), but {_characterState.GetBagCount()} remain in the bag. Sell resources to free space.");
+			return;
+		}
+
+		if (_activeGatherCommand is not null &&
+			_activeGatherCommand.Kind == WorkKind.Gather &&
+			_activeGatherCommand.StopWhenStockpileFull &&
+			_characterState.GetBagCount() == 0 &&
+			!_townState.HasStorageSpace())
+		{
+			ResourceDefinition finishedResource = GameCatalog.GetResource(_activeGatherCommand.ResourceId!);
+			ResourceActionDefinition finishedAction = GetResourceAction(finishedResource, _activeGatherCommand.ResourceActionId);
+			CompleteCurrentCommand($"{finishedAction.Verb} stopped because the stockpile is full.");
 			return;
 		}
 
@@ -1158,7 +1212,11 @@ public partial class InfiniteWorld : Node2D
 		_characterState.AddToBag(item.Id);
 		_characterState.AddSkillXp(skill.Id);
 
-		if (_activeGatherCommand is not null && _activeGatherCommand.RemainingAmount > 0)
+		if (_activeGatherCommand is not null && _activeGatherCommand.StopWhenStockpileFull)
+		{
+			_activeGatherCommand.RemainingAmount = System.Math.Max(0, _townState.GetRemainingStorage() - _characterState.GetBagCount());
+		}
+		else if (_activeGatherCommand is not null && _activeGatherCommand.RemainingAmount > 0)
 		{
 			_activeGatherCommand.RemainingAmount--;
 		}
@@ -1175,7 +1233,12 @@ public partial class InfiniteWorld : Node2D
 			_workerPhase = WorkerPhase.ReturningToTown;
 			result += " Bag full, returning to town.";
 		}
-		else if (_activeGatherCommand is not null && _activeGatherCommand.RemainingAmount <= 0)
+		else if (_activeGatherCommand is not null && _activeGatherCommand.StopWhenStockpileFull && _activeGatherCommand.RemainingAmount <= 0)
+		{
+			_workerPhase = WorkerPhase.ReturningToTown;
+			result += " Enough gathered to fill the stockpile, returning to town.";
+		}
+		else if (_activeGatherCommand is not null && !_activeGatherCommand.StopWhenStockpileFull && _activeGatherCommand.RemainingAmount <= 0)
 		{
 			_workerPhase = WorkerPhase.ReturningToTown;
 			result += " Batch complete, returning to town.";
@@ -1244,6 +1307,7 @@ public partial class InfiniteWorld : Node2D
 	private void ActivateCommand(GatherCommand command)
 	{
 		_activeGatherCommand = command;
+		RefreshStockpileFillEstimate(command);
 		_gatherProgressSeconds = 0.0;
 		_activeTownUpgradePaid = false;
 		_workerPhase = command.Kind == WorkKind.Gather && _characterState.IsBagFull()
@@ -1252,6 +1316,18 @@ public partial class InfiniteWorld : Node2D
 		_queuePanelDirty = true;
 		UpdateQueuePanel();
 		RefreshActionPanel();
+	}
+
+	private void RefreshStockpileFillEstimate(GatherCommand command)
+	{
+		if (command.Kind != WorkKind.Gather || !command.StopWhenStockpileFull)
+		{
+			return;
+		}
+
+		int estimatedAmount = System.Math.Max(0, _townState.GetRemainingStorage() - _characterState.GetBagCount());
+		command.TotalAmount = estimatedAmount;
+		command.RemainingAmount = estimatedAmount;
 	}
 
 	private void CompleteCurrentCommand(string completedStatus)
@@ -1319,6 +1395,7 @@ public partial class InfiniteWorld : Node2D
 
 		List<GatherCommand> plannedCommands = new();
 		List<string> queuedRequirements = new();
+		int totalShortfall = 0;
 
 		foreach (BuildingCostDefinition cost in StockpileUpgrade.Costs)
 		{
@@ -1337,7 +1414,17 @@ public partial class InfiniteWorld : Node2D
 			}
 
 			plannedCommands.Add(gatherCommand);
+			totalShortfall += shortfall;
 			queuedRequirements.Add($"{shortfall} {GameCatalog.GetItem(cost.ItemId).DisplayName.ToLowerInvariant()}");
+		}
+
+		int projectedRemainingStorage = GetProjectedRemainingStockpileSpace();
+		if (totalShortfall > projectedRemainingStorage)
+		{
+			statusMessage = projectedRemainingStorage > 0
+				? $"Free {totalShortfall - projectedRemainingStorage} more stockpile space before queueing this upgrade."
+				: "Free stockpile space before queueing this upgrade.";
+			return false;
 		}
 
 		int projectedLevel = _townState.StockpileLevel + GetQueuedStockpileUpgradeCount() + (_activeGatherCommand?.Kind == WorkKind.TownUpgrade ? 1 : 0);
@@ -1425,19 +1512,23 @@ public partial class InfiniteWorld : Node2D
 		TryStartNextQueuedCommand();
 	}
 
-	private GatherCommand CreateGatherCommand(string resourceId, string actionId, Vector2I cell, int amount)
+	private GatherCommand CreateGatherCommand(string resourceId, string actionId, Vector2I cell, int amount, bool stopWhenStockpileFull = false)
 	{
 		ResourceDefinition resource = GameCatalog.GetResource(resourceId);
 		ResourceActionDefinition action = GetResourceAction(resource, actionId);
+		int queuedAmount = System.Math.Max(0, amount);
 		return new GatherCommand
 		{
 			Cell = cell,
 			Kind = WorkKind.Gather,
 			ResourceId = resourceId,
 			ResourceActionId = action.Id,
-			TotalAmount = amount,
-			RemainingAmount = amount,
-			Description = $"{resource.DisplayName} {action.ButtonText.ToLowerInvariant()} x{amount} at ({cell.X}, {cell.Y})",
+			TotalAmount = queuedAmount,
+			RemainingAmount = queuedAmount,
+			StopWhenStockpileFull = stopWhenStockpileFull,
+			Description = stopWhenStockpileFull
+				? $"{resource.DisplayName} {action.ButtonText.ToLowerInvariant()} fill stockpile at ({cell.X}, {cell.Y})"
+				: $"{resource.DisplayName} {action.ButtonText.ToLowerInvariant()} x{queuedAmount} at ({cell.X}, {cell.Y})",
 		};
 	}
 
@@ -1667,6 +1758,80 @@ public partial class InfiniteWorld : Node2D
 		}
 
 		return projectedCount;
+	}
+
+	private int GetProjectedRemainingStockpileSpace()
+	{
+		int projectedStoredCount = _townState.GetStoredCountTotal();
+		int projectedCapacity = _townState.StockpileCapacity;
+		if (_activeGatherCommand?.Kind != WorkKind.DeliverExploreMaterials)
+		{
+			projectedStoredCount = System.Math.Min(projectedCapacity, projectedStoredCount + _characterState.GetBagCount());
+		}
+
+		if (_activeGatherCommand is not null)
+		{
+			ApplyProjectedStockpileState(_activeGatherCommand, ref projectedStoredCount, ref projectedCapacity);
+		}
+
+		foreach (GatherCommand command in _queuedCommands)
+		{
+			ApplyProjectedStockpileState(command, ref projectedStoredCount, ref projectedCapacity);
+		}
+
+		return System.Math.Max(0, projectedCapacity - projectedStoredCount);
+	}
+
+	private void ApplyProjectedStockpileState(GatherCommand command, ref int projectedStoredCount, ref int projectedCapacity)
+	{
+		switch (command.Kind)
+		{
+			case WorkKind.Gather:
+				if (command.StopWhenStockpileFull)
+				{
+					projectedStoredCount = projectedCapacity;
+					return;
+				}
+
+				projectedStoredCount = System.Math.Min(projectedCapacity, projectedStoredCount + System.Math.Max(0, command.RemainingAmount));
+				return;
+
+			case WorkKind.DeliverExploreMaterials:
+				projectedStoredCount = System.Math.Max(0, projectedStoredCount - System.Math.Max(0, command.RemainingAmount));
+				return;
+
+			case WorkKind.TownUpgrade:
+				projectedStoredCount = System.Math.Max(0, projectedStoredCount - SumCosts(StockpileUpgrade.Costs));
+				projectedCapacity = PreviewStockpileCapacity(projectedCapacity);
+				projectedStoredCount = System.Math.Min(projectedStoredCount, projectedCapacity);
+				return;
+
+			case WorkKind.BuildingConstruction when !string.IsNullOrEmpty(command.BuildingId):
+				BuildingDefinition definition = GameCatalog.GetBuilding(command.BuildingId);
+				BuildingLevelDefinition level = definition.GetLevelDefinition(command.TargetLevel);
+				projectedStoredCount = System.Math.Max(0, projectedStoredCount - SumCosts(level.Costs));
+				return;
+		}
+	}
+
+	private static int SumCosts(IEnumerable<BuildingCostDefinition> costs)
+	{
+		int total = 0;
+		foreach (BuildingCostDefinition cost in costs)
+		{
+			total += cost.Amount;
+		}
+
+		return total;
+	}
+
+	private int PreviewStockpileCapacity(int currentCapacity)
+	{
+		double scaledCapacity = currentCapacity * StockpileUpgrade.CapacityMultiplier;
+		int roundedCapacity = (int)System.Math.Round(
+			scaledCapacity / StockpileUpgrade.CapacityRoundTo,
+			System.MidpointRounding.AwayFromZero) * StockpileUpgrade.CapacityRoundTo;
+		return System.Math.Max(currentCapacity + StockpileUpgrade.CapacityRoundTo, roundedCapacity);
 	}
 
 	private int ApplyProjectedTownDelta(int currentAmount, string itemId, GatherCommand command, bool isActiveCommand)
@@ -2032,7 +2197,8 @@ public partial class InfiniteWorld : Node2D
 			return command.Description;
 		}
 
-		if ((command.Kind != WorkKind.Gather && command.Kind != WorkKind.DeliverExploreMaterials) || command.TotalAmount <= 0)
+		if ((command.Kind != WorkKind.Gather && command.Kind != WorkKind.DeliverExploreMaterials) ||
+			command.TotalAmount <= 0)
 		{
 			return command.Description;
 		}
@@ -2234,10 +2400,12 @@ public partial class InfiniteWorld : Node2D
 		ResourceActionDefinition primaryAction = actions[0];
 		SkillDefinition skill = GameCatalog.GetSkill(primaryAction.SkillId);
 		_actionPrimaryResourceActionId = primaryAction.Id;
-		_actionSecondaryResourceActionId = actions.Count > 1 ? actions[1].Id : null;
+		_actionSecondaryResourceActionId = primaryAction.Id;
+		_actionTertiaryResourceActionId = actions.Count > 1 ? actions[1].Id : null;
 
 		ItemDefinition item = GameCatalog.GetItem(primaryAction.ItemId);
 		Color accent = skill.IconColor;
+		int projectedRemainingStorage = GetProjectedRemainingStockpileSpace();
 		System.Collections.Generic.List<SelectionStatChipViewData> stats = new()
 		{
 			new()
@@ -2245,7 +2413,7 @@ public partial class InfiniteWorld : Node2D
 				IconGlyph = "Q",
 				Label = "Queue",
 				Value = $"x{Rules.DefaultQueuedGatherAmount}",
-				TooltipText = $"One click adds {Rules.DefaultQueuedGatherAmount} runs to the action queue.",
+				TooltipText = $"One click adds {Rules.DefaultQueuedGatherAmount} runs to the action queue. Use Fill Stockpile to keep gathering until town storage is full.",
 				AccentColor = accent,
 			},
 			new()
@@ -2293,7 +2461,16 @@ public partial class InfiniteWorld : Node2D
 		string progressionText = $"{skill.DisplayName} rises with each run of {primaryAction.ButtonText.ToLowerInvariant()}.";
 		string progressionTooltip = $"{primaryAction.Verb} here trains {skill.DisplayName}.";
 		bool emphasizeProgression = false;
-		SelectedResourcePanelActionViewData secondaryActionViewData = new() { Visible = false };
+		SelectedResourcePanelActionViewData secondaryActionViewData = new()
+		{
+			Visible = true,
+			Enabled = true,
+			Text = "Fill stockpile",
+			TooltipText = projectedRemainingStorage > 0
+				? $"Queue a stockpile-fill job for {primaryAction.ButtonText.ToLowerInvariant()}. About {projectedRemainingStorage} storage space should remain by the time it starts."
+				: $"Queue a stockpile-fill job for {primaryAction.ButtonText.ToLowerInvariant()}. It will wait in the queue and fill any space available when it starts.",
+		};
+		SelectedResourcePanelActionViewData tertiaryActionViewData = new() { Visible = false };
 
 		if (actions.Count > 1)
 		{
@@ -2308,7 +2485,7 @@ public partial class InfiniteWorld : Node2D
 				? $"{secondaryAction.ButtonText} is available and will gather {secondaryItem.DisplayName.ToLowerInvariant()}."
 				: $"{secondaryAction.ButtonText} becomes available once {secondarySkill.DisplayName} reaches level {secondaryAction.MinSkillLevel}.";
 			emphasizeProgression = unlocked;
-			secondaryActionViewData = new SelectedResourcePanelActionViewData
+			tertiaryActionViewData = new SelectedResourcePanelActionViewData
 			{
 				Visible = true,
 				Enabled = unlocked,
@@ -2344,6 +2521,7 @@ public partial class InfiniteWorld : Node2D
 				TooltipText = $"Queue {Rules.DefaultQueuedGatherAmount} runs of {primaryAction.ButtonText.ToLowerInvariant()} at ({cell.X}, {cell.Y}).",
 			},
 			SecondaryAction = secondaryActionViewData,
+			TertiaryAction = tertiaryActionViewData,
 		});
 
 		_selectionView?.ShowSelectionCard();
@@ -2362,6 +2540,7 @@ public partial class InfiniteWorld : Node2D
 		_actionResourceId = null;
 		_actionPrimaryResourceActionId = null;
 		_actionSecondaryResourceActionId = null;
+		_actionTertiaryResourceActionId = null;
 		_actionWorkKind = WorkKind.Explore;
 		FrontierTileState frontierState = EnsureFrontierTileState(cell);
 		SkillDefinition exploringSkill = GameCatalog.Exploring;
@@ -2465,6 +2644,7 @@ public partial class InfiniteWorld : Node2D
 	{
 		_actionPrimaryResourceActionId = null;
 		_actionSecondaryResourceActionId = null;
+		_actionTertiaryResourceActionId = null;
 		if (_selectedResourcePanel is not null)
 		{
 			_selectedResourcePanel.HidePanel();
@@ -2821,12 +3001,14 @@ public partial class InfiniteWorld : Node2D
 			"stones" => "O",
 			"berries" => "*",
 			"logs" => "=",
+			"copper_ore" => "C",
 			_ => "+",
 		};
 	}
 
 	private bool CanQueueStockpileUpgrade()
 	{
+		int totalShortfall = 0;
 		foreach (BuildingCostDefinition cost in StockpileUpgrade.Costs)
 		{
 			int shortfall = System.Math.Max(0, cost.Amount - GetProjectedTownItemCount(cost.ItemId));
@@ -2834,9 +3016,11 @@ public partial class InfiniteWorld : Node2D
 			{
 				return false;
 			}
+
+			totalShortfall += shortfall;
 		}
 
-		return true;
+		return totalShortfall <= GetProjectedRemainingStockpileSpace();
 	}
 
 	private void OnStockpileUpgradePressed()
@@ -3048,10 +3232,15 @@ public partial class InfiniteWorld : Node2D
 
 	private void OnSecondaryActionButtonPressed()
 	{
-		QueueSelectedAction(_actionSecondaryResourceActionId);
+		QueueSelectedAction(_actionSecondaryResourceActionId, fillStockpile: true);
 	}
 
-	private void QueueSelectedAction(string? actionId)
+	private void OnTertiaryActionButtonPressed()
+	{
+		QueueSelectedAction(_actionTertiaryResourceActionId);
+	}
+
+	private void QueueSelectedAction(string? actionId, bool fillStockpile = false)
 	{
 		if (_actionWorkKind == WorkKind.Explore)
 		{
@@ -3088,13 +3277,34 @@ public partial class InfiniteWorld : Node2D
 			return;
 		}
 
-		GatherCommand command = CreateGatherCommand(_actionResourceId, action.Id, _actionCell, Rules.DefaultQueuedGatherAmount);
+		if (fillStockpile)
+		{
+			int projectedRemainingStorage = GetProjectedRemainingStockpileSpace();
+			GatherCommand fillStockpileCommand = CreateGatherCommand(
+				_actionResourceId,
+				action.Id,
+				_actionCell,
+				projectedRemainingStorage,
+				stopWhenStockpileFull: true);
+			EnqueueCommand(fillStockpileCommand);
+			UpdateTownPanel();
+			UpdateQueuePanel();
+			RefreshActionPanel();
+
+			UpdateStatus(projectedRemainingStorage > 0
+				? $"Queued {action.ButtonText.ToLowerInvariant()} to fill the stockpile at ({_actionCell.X}, {_actionCell.Y})."
+				: $"Queued {action.ButtonText.ToLowerInvariant()} as a stockpile-fill job at ({_actionCell.X}, {_actionCell.Y}).");
+			return;
+		}
+
+		int gatherAmount = Rules.DefaultQueuedGatherAmount;
+		GatherCommand command = CreateGatherCommand(_actionResourceId, action.Id, _actionCell, gatherAmount);
 		EnqueueCommand(command);
 		UpdateTownPanel();
 		UpdateQueuePanel();
 		RefreshActionPanel();
 
-		UpdateStatus($"Queued {action.ButtonText.ToLowerInvariant()} x{Rules.DefaultQueuedGatherAmount} at ({_actionCell.X}, {_actionCell.Y}).");
+		UpdateStatus($"Queued {action.ButtonText.ToLowerInvariant()} x{gatherAmount} at ({_actionCell.X}, {_actionCell.Y}).");
 	}
 
 	private void ClearGatherCommand()
@@ -3324,6 +3534,9 @@ public partial class InfiniteWorld : Node2D
 			case "berries":
 				DrawBerries(tileOrigin);
 				break;
+			case "copper_ore":
+				DrawCopperOre(tileOrigin);
+				break;
 		}
 	}
 
@@ -3359,6 +3572,17 @@ public partial class InfiniteWorld : Node2D
 		DrawCircle(center + new Vector2(3.0f, -12.0f), 3.0f, BerryLeaf);
 	}
 
+	private void DrawCopperOre(Vector2 tileOrigin)
+	{
+		Vector2 center = tileOrigin + new Vector2(Rules.TileSize * 0.5f, Rules.TileSize * 0.62f);
+
+		DrawCircle(center + new Vector2(-8.0f, 2.0f), 8.0f, StoneDark);
+		DrawCircle(center + new Vector2(4.0f, -1.0f), 10.0f, StoneLight);
+		DrawCircle(center + new Vector2(-4.0f, 0.0f), 3.5f, CopperDark);
+		DrawCircle(center + new Vector2(6.0f, -3.0f), 3.0f, CopperLight);
+		DrawCircle(center + new Vector2(10.0f, 5.0f), 2.5f, CopperDark);
+	}
+
 	private void DrawTown(Vector2 tileOrigin)
 	{
 		Vector2 center = tileOrigin + new Vector2(Rules.TileSize * 0.5f, Rules.TileSize * 0.5f);
@@ -3383,27 +3607,45 @@ public partial class InfiniteWorld : Node2D
 			return starterResourceId;
 		}
 
-		float treeField = SampleField(cell.X, cell.Y, 0.16f, 0.11f, 0.8f);
-		float stoneField = SampleField(cell.X, cell.Y, 0.07f, 0.09f, 2.2f);
-		float berryField = SampleField(cell.X, cell.Y, 0.22f, 0.18f, -1.4f);
 		float roll = ToUnitFloat(HashCell(cell.X, cell.Y, 0x68BC21EBu));
+		return RollExploreOutcome(roll);
+	}
 
-		if (treeField > 0.78f && roll > 0.965f)
+	private static string? RollExploreOutcome(float roll)
+	{
+		double totalWeight = 0.0;
+		foreach (ExploreTileOutcomeDefinition outcome in GameCatalog.ExploreTileOutcomes)
 		{
-			return GameCatalog.Tree.Id;
+			if (outcome.Weight > 0.0)
+			{
+				totalWeight += outcome.Weight;
+			}
 		}
 
-		if (stoneField > 0.82f && roll > 0.972f)
+		if (totalWeight <= 0.0)
 		{
-			return GameCatalog.Stone.Id;
+			return null;
 		}
 
-		if (berryField > 0.84f && roll > 0.975f)
+		double threshold = roll * totalWeight;
+		double cumulativeWeight = 0.0;
+		string? fallbackResourceId = null;
+		foreach (ExploreTileOutcomeDefinition outcome in GameCatalog.ExploreTileOutcomes)
 		{
-			return GameCatalog.BerryBush.Id;
+			if (outcome.Weight <= 0.0)
+			{
+				continue;
+			}
+
+			cumulativeWeight += outcome.Weight;
+			fallbackResourceId = string.IsNullOrWhiteSpace(outcome.ResourceId) ? null : outcome.ResourceId;
+			if (threshold < cumulativeWeight)
+			{
+				return fallbackResourceId;
+			}
 		}
 
-		return null;
+		return fallbackResourceId;
 	}
 
 	private static string? GetStarterResourceId(Vector2I cell)

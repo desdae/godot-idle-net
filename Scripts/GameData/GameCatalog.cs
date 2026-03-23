@@ -8,6 +8,8 @@ public static class GameCatalog
 {
 	public static GameRulesDefinition Rules { get; }
 
+	public static IReadOnlyList<ExploreTileOutcomeDefinition> ExploreTileOutcomes { get; }
+
 	public static IReadOnlyList<SkillDefinition> Skills { get; }
 
 	public static IReadOnlyList<ItemDefinition> Items { get; }
@@ -27,6 +29,7 @@ public static class GameCatalog
 	static GameCatalog()
 	{
 		Rules = LoadObject<GameRulesDefinition>("res://Data/rules.json");
+		ExploreTileOutcomes = LoadList<ExploreTileOutcomeDefinition>("res://Data/explore_tile_outcomes.json");
 		Skills = LoadList<SkillDefinition>("res://Data/skills.json");
 		Items = LoadList<ItemDefinition>("res://Data/items.json");
 		Resources = LoadList<ResourceDefinition>("res://Data/resources.json");
@@ -38,6 +41,8 @@ public static class GameCatalog
 		ResourcesById = CreateMap(Resources, resource => resource.Id);
 		BuildingsById = CreateMap(Buildings, building => building.Id);
 		TownUpgradesById = CreateMap(TownUpgrades, upgrade => upgrade.Id);
+
+		ValidateExploreTileOutcomes();
 	}
 
 	public static SkillDefinition Woodcutting => GetSkill("woodcutting");
@@ -65,6 +70,8 @@ public static class GameCatalog
 	public static ResourceDefinition Stone => GetResource("stone");
 
 	public static ResourceDefinition BerryBush => GetResource("berries");
+
+	public static ResourceDefinition CopperOre => GetResource("copper_ore");
 
 	public static TownUpgradeDefinition StockpileUpgrade => GetTownUpgrade("stockpile");
 
@@ -153,5 +160,34 @@ public static class GameCatalog
 		}
 
 		return map;
+	}
+
+	private static void ValidateExploreTileOutcomes()
+	{
+		if (ExploreTileOutcomes.Count == 0)
+		{
+			throw new JsonException("Explore tile outcomes must define at least one weighted outcome.");
+		}
+
+		double totalWeight = 0.0;
+		foreach (ExploreTileOutcomeDefinition outcome in ExploreTileOutcomes)
+		{
+			if (double.IsNaN(outcome.Weight) || double.IsInfinity(outcome.Weight) || outcome.Weight < 0.0)
+			{
+				throw new JsonException("Explore tile outcome weights must be finite values greater than or equal to zero.");
+			}
+
+			if (!string.IsNullOrWhiteSpace(outcome.ResourceId) && !ResourcesById.ContainsKey(outcome.ResourceId))
+			{
+				throw new JsonException($"Unknown explore tile resource id '{outcome.ResourceId}'.");
+			}
+
+			totalWeight += outcome.Weight;
+		}
+
+		if (totalWeight <= 0.0)
+		{
+			throw new JsonException("Explore tile outcomes must include at least one positive weight.");
+		}
 	}
 }

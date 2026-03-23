@@ -34,4 +34,6 @@ public sealed class SelectedResourcePanelViewData
     public SelectedResourcePanelActionViewData PrimaryAction { get; init; } = new();
 
     public SelectedResourcePanelActionViewData SecondaryAction { get; init; } = new() { Visible = false };
+
+    public SelectedResourcePanelActionViewData TertiaryAction { get; init; } = new() { Visible = false };
 }

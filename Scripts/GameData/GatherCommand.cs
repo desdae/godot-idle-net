@@ -31,9 +31,11 @@ public sealed class GatherCommand
 
     public Vector2I? LinkedCell { get; init; }
 
-    public int TotalAmount { get; init; }
+    public int TotalAmount { get; set; }
 
     public int RemainingAmount { get; set; }
+
+    public bool StopWhenStockpileFull { get; init; }
 
     public string Description { get; init; } = string.Empty;
 }
