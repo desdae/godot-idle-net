@@ -21,27 +21,27 @@ size_flags_vertical = 3
 theme_override_constants/separation = 8
 
 [node name="SelectionButton" type="Button" parent="OuterMargin/RootColumn"]
-custom_minimum_size = Vector2(0, 58)
-text = "Select"
-tooltip_text = "Selection"
+custom_minimum_size = Vector2(0, 56)
+text = "Map"
+tooltip_text = "Map"
+
+[node name="BuildingsButton" type="Button" parent="OuterMargin/RootColumn"]
+custom_minimum_size = Vector2(0, 56)
+text = "Build"
+tooltip_text = "Buildings"
 
 [node name="QueueButton" type="Button" parent="OuterMargin/RootColumn"]
-custom_minimum_size = Vector2(0, 58)
+custom_minimum_size = Vector2(0, 56)
 text = "Queue"
 tooltip_text = "Action Queue"
 
 [node name="TownButton" type="Button" parent="OuterMargin/RootColumn"]
-custom_minimum_size = Vector2(0, 58)
+custom_minimum_size = Vector2(0, 56)
 text = "Town"
 tooltip_text = "Town Ledger"
 
-[node name="BuildingsButton" type="Button" parent="OuterMargin/RootColumn"]
-custom_minimum_size = Vector2(0, 58)
-text = "Build"
-tooltip_text = "Buildings"
-
 [node name="PeopleButton" type="Button" parent="OuterMargin/RootColumn"]
-custom_minimum_size = Vector2(0, 58)
+custom_minimum_size = Vector2(0, 56)
 text = "People"
 tooltip_text = "Worker Roster"
 

@@ -1,0 +1,162 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/HUD/OverviewPanel.cs" id="1_script"]
+[ext_resource type="PackedScene" path="res://UI/Views/SelectionView.tscn" id="2_selection"]
+[ext_resource type="PackedScene" path="res://UI/Views/QueueView.tscn" id="3_queue"]
+[ext_resource type="PackedScene" path="res://UI/TownUI/TownUI.tscn" id="4_town"]
+[ext_resource type="PackedScene" path="res://UI/Views/PeopleView.tscn" id="5_people"]
+[ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="6_theme"]
+
+[node name="OverviewPanel" type="PanelContainer"]
+custom_minimum_size = Vector2(420, 0)
+theme = ExtResource("6_theme")
+script = ExtResource("1_script")
+
+[node name="OuterMargin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="RootColumn" type="VBoxContainer" parent="OuterMargin"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="HeaderColumn" type="VBoxContainer" parent="OuterMargin/RootColumn"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="PanelTitleLabel" type="Label" parent="OuterMargin/RootColumn/HeaderColumn"]
+text = "People"
+
+[node name="PanelSubtitleLabel" type="Label" parent="OuterMargin/RootColumn/HeaderColumn"]
+text = "Manage the roster and issue group orders."
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="ContentHost" type="Control" parent="OuterMargin/RootColumn"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+clip_contents = true
+
+[node name="TownSummaryScroll" type="ScrollContainer" parent="OuterMargin/RootColumn/ContentHost"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+horizontal_scroll_mode = 0
+
+[node name="TownSummaryColumn" type="VBoxContainer" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="OverviewCard" type="PanelContainer" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn"]
+
+[node name="CardMargin" type="MarginContainer" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/OverviewCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="CardColumn" type="VBoxContainer" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/OverviewCard/CardMargin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TitleLabel" type="Label" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/OverviewCard/CardMargin/CardColumn"]
+text = "Overview"
+
+[node name="BodyLabel" type="Label" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/OverviewCard/CardMargin/CardColumn"]
+autowrap_mode = 2
+text = "Town summary"
+
+[node name="HousingCard" type="PanelContainer" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn"]
+
+[node name="CardMargin" type="MarginContainer" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/HousingCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="CardColumn" type="VBoxContainer" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/HousingCard/CardMargin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TitleLabel" type="Label" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/HousingCard/CardMargin/CardColumn"]
+text = "Housing"
+
+[node name="BodyLabel" type="Label" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/HousingCard/CardMargin/CardColumn"]
+autowrap_mode = 2
+text = "Housing summary"
+
+[node name="ProductionCard" type="PanelContainer" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn"]
+
+[node name="CardMargin" type="MarginContainer" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/ProductionCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="CardColumn" type="VBoxContainer" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/ProductionCard/CardMargin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TitleLabel" type="Label" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/ProductionCard/CardMargin/CardColumn"]
+text = "Production"
+
+[node name="BodyLabel" type="Label" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/ProductionCard/CardMargin/CardColumn"]
+autowrap_mode = 2
+text = "Production summary"
+
+[node name="AlertsCard" type="PanelContainer" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn"]
+
+[node name="CardMargin" type="MarginContainer" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/AlertsCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="CardColumn" type="VBoxContainer" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/AlertsCard/CardMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TitleLabel" type="Label" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/AlertsCard/CardMargin/CardColumn"]
+text = "Alerts"
+
+[node name="AlertsList" type="VBoxContainer" parent="OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/AlertsCard/CardMargin/CardColumn"]
+theme_override_constants/separation = 4
+
+[node name="SelectionView" parent="OuterMargin/RootColumn/ContentHost" instance=ExtResource("2_selection")]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="QueueView" parent="OuterMargin/RootColumn/ContentHost" instance=ExtResource("3_queue")]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="TownUI" parent="OuterMargin/RootColumn/ContentHost" instance=ExtResource("4_town")]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="PeopleView" parent="OuterMargin/RootColumn/ContentHost" instance=ExtResource("5_people")]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0

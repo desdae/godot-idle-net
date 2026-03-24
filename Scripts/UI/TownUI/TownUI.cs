@@ -114,7 +114,7 @@ public partial class TownUI : Control
             return;
         }
 
-        _titleLabel.Text = _currentMode == TownPanelMode.Buildings ? "Town Works" : data.SettlementTitle;
+        _titleLabel.Text = _currentMode == TownPanelMode.Buildings ? "Works" : data.SettlementTitle;
         _goldLabel.Text = $"o {data.Gold}";
         _stockpileLabel.Text = data.StockpileSummary;
         _stockpileBar.MaxValue = data.StockpileCapacity;
@@ -403,7 +403,7 @@ public partial class TownUI : Control
         switch (_currentMode)
         {
             case TownPanelMode.Buildings:
-                _titleLabel.Text = "Town Works";
+                _titleLabel.Text = "Works";
                 _ledgerLabel.Text = "Contracts, upgrades, and current worksites.";
                 _closeButton.Text = "Close Works";
                 break;

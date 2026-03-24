@@ -288,12 +288,12 @@ text = "All"
 [node name="AvailableButton" type="Button" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow"]
 size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 24)
-text = "Build"
+text = "New"
 
 [node name="ExistingButton" type="Button" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow"]
 size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 24)
-text = "Owned"
+text = "Built"
 
 [node name="BuildingList" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn"]
 theme_override_constants/separation = 6

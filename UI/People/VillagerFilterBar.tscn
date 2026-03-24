@@ -1,0 +1,31 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/People/VillagerFilterBar.cs" id="1_script"]
+[ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="2_theme"]
+
+[node name="VillagerFilterBar" type="Control"]
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="RootFlow" type="HFlowContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+
+[node name="AllButton" type="Button" parent="RootFlow"]
+text = "All"
+
+[node name="IdleButton" type="Button" parent="RootFlow"]
+text = "Idle"
+
+[node name="AssignedButton" type="Button" parent="RootFlow"]
+text = "Assigned"
+
+[node name="BuildersButton" type="Button" parent="RootFlow"]
+text = "Builders"
+
+[node name="CarryingButton" type="Button" parent="RootFlow"]
+text = "Carrying"

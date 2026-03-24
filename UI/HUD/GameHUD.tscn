@@ -1,11 +1,10 @@
 [gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://Scripts/UI/HUD/GameHUD.cs" id="1_script"]
-[ext_resource type="PackedScene" path="res://UI/HUD/NavigationRail.tscn" id="2_rail"]
-[ext_resource type="PackedScene" path="res://UI/Views/SelectionView.tscn" id="3_selection"]
-[ext_resource type="PackedScene" path="res://UI/Views/QueueView.tscn" id="4_queue"]
-[ext_resource type="PackedScene" path="res://UI/TownUI/TownUI.tscn" id="5_town"]
-[ext_resource type="PackedScene" path="res://UI/Views/PeopleView.tscn" id="6_people"]
+[ext_resource type="PackedScene" path="res://UI/HUD/TopResourceBar.tscn" id="2_topbar"]
+[ext_resource type="PackedScene" path="res://UI/HUD/NavigationRail.tscn" id="3_rail"]
+[ext_resource type="PackedScene" path="res://UI/HUD/OverviewPanel.tscn" id="4_overview"]
+[ext_resource type="PackedScene" path="res://UI/HUD/MapPanel.tscn" id="5_map"]
 [ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="7_theme"]
 
 [node name="GameHUD" type="Control"]
@@ -29,102 +28,21 @@ theme_override_constants/margin_bottom = 12
 [node name="RootColumn" type="VBoxContainer" parent="RootMargin"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 10
-
-[node name="TopRow" type="HBoxContainer" parent="RootMargin/RootColumn"]
 theme_override_constants/separation = 12
 
-[node name="HintPanel" type="PanelContainer" parent="RootMargin/RootColumn/TopRow"]
-custom_minimum_size = Vector2(540, 42)
-
-[node name="HintMargin" type="MarginContainer" parent="RootMargin/RootColumn/TopRow/HintPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 6
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 6
-
-[node name="HintLabel" type="Label" parent="RootMargin/RootColumn/TopRow/HintPanel/HintMargin"]
-layout_mode = 2
-text = "Click a resource, town, or villager to inspect it."
-
-[node name="TopSpacer" type="Control" parent="RootMargin/RootColumn/TopRow"]
+[node name="TopResourceBar" parent="RootMargin/RootColumn" instance=ExtResource("2_topbar")]
 size_flags_horizontal = 3
 
-[node name="CoordsPanel" type="PanelContainer" parent="RootMargin/RootColumn/TopRow"]
-custom_minimum_size = Vector2(174, 42)
-
-[node name="CoordsLabel" type="Label" parent="RootMargin/RootColumn/TopRow/CoordsPanel"]
-layout_mode = 0
-offset_left = 10.0
-offset_top = 7.0
-offset_right = 164.0
-offset_bottom = 35.0
-text = "X: 0  Y: 0"
-horizontal_alignment = 2
-vertical_alignment = 1
-
-[node name="MiddleRow" type="HBoxContainer" parent="RootMargin/RootColumn"]
+[node name="MainRow" type="HBoxContainer" parent="RootMargin/RootColumn"]
 size_flags_vertical = 3
 theme_override_constants/separation = 12
 
-[node name="LeftDock" type="HBoxContainer" parent="RootMargin/RootColumn/MiddleRow"]
-custom_minimum_size = Vector2(482, 0)
-theme_override_constants/separation = 12
+[node name="NavigationRail" parent="RootMargin/RootColumn/MainRow" instance=ExtResource("3_rail")]
+custom_minimum_size = Vector2(84, 0)
 
-[node name="NavigationRail" parent="RootMargin/RootColumn/MiddleRow/LeftDock" instance=ExtResource("2_rail")]
-custom_minimum_size = Vector2(88, 0)
+[node name="OverviewPanel" parent="RootMargin/RootColumn/MainRow" instance=ExtResource("4_overview")]
+custom_minimum_size = Vector2(420, 0)
 
-[node name="ContentFrame" type="PanelContainer" parent="RootMargin/RootColumn/MiddleRow/LeftDock"]
-custom_minimum_size = Vector2(382, 0)
+[node name="MapPanel" parent="RootMargin/RootColumn/MainRow" instance=ExtResource("5_map")]
+size_flags_horizontal = 3
 size_flags_vertical = 3
-
-[node name="ContentHost" type="Control" parent="RootMargin/RootColumn/MiddleRow/LeftDock/ContentFrame"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 8.0
-offset_right = -8.0
-offset_bottom = -8.0
-clip_contents = true
-
-[node name="SelectionView" parent="RootMargin/RootColumn/MiddleRow/LeftDock/ContentFrame/ContentHost" instance=ExtResource("3_selection")]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-
-[node name="QueueView" parent="RootMargin/RootColumn/MiddleRow/LeftDock/ContentFrame/ContentHost" instance=ExtResource("4_queue")]
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-
-[node name="TownUI" parent="RootMargin/RootColumn/MiddleRow/LeftDock/ContentFrame/ContentHost" instance=ExtResource("5_town")]
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-
-[node name="PeopleView" parent="RootMargin/RootColumn/MiddleRow/LeftDock/ContentFrame/ContentHost" instance=ExtResource("6_people")]
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-
-[node name="WorldSpacer" type="Control" parent="RootMargin/RootColumn/MiddleRow"]
-size_flags_horizontal = 3
-
-[node name="BottomRow" type="HBoxContainer" parent="RootMargin/RootColumn"]
-
-[node name="BottomSpacer" type="Control" parent="RootMargin/RootColumn/BottomRow"]
-custom_minimum_size = Vector2(100, 0)
-
-[node name="StatusLabel" type="Label" parent="RootMargin/RootColumn/BottomRow"]
-size_flags_horizontal = 3
-text = ""

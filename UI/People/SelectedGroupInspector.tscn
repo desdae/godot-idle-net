@@ -1,0 +1,57 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/People/SelectedGroupInspector.cs" id="1_script"]
+[ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="2_theme"]
+
+[node name="SelectedGroupInspector" type="PanelContainer"]
+custom_minimum_size = Vector2(0, 120)
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="OuterMargin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="RootColumn" type="VBoxContainer" parent="OuterMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TitleLabel" type="Label" parent="OuterMargin/RootColumn"]
+text = "Selected Group"
+
+[node name="SummaryLabel" type="Label" parent="OuterMargin/RootColumn"]
+text = "No villagers selected."
+
+[node name="DetailsGrid" type="GridContainer" parent="OuterMargin/RootColumn"]
+columns = 2
+
+[node name="RolesLabel" type="Label" parent="OuterMargin/RootColumn/DetailsGrid"]
+text = "Roles"
+
+[node name="RolesValue" type="Label" parent="OuterMargin/RootColumn/DetailsGrid"]
+text = "None"
+
+[node name="AssignmentsLabel" type="Label" parent="OuterMargin/RootColumn/DetailsGrid"]
+text = "Assignments"
+
+[node name="AssignmentsValue" type="Label" parent="OuterMargin/RootColumn/DetailsGrid"]
+text = "No orders"
+
+[node name="ActionFlow" type="HFlowContainer" parent="OuterMargin/RootColumn"]
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+
+[node name="ChopButton" type="Button" parent="OuterMargin/RootColumn/ActionFlow"]
+text = "Chop"
+
+[node name="MineButton" type="Button" parent="OuterMargin/RootColumn/ActionFlow"]
+text = "Mine"
+
+[node name="BuildButton" type="Button" parent="OuterMargin/RootColumn/ActionFlow"]
+text = "Build"
+
+[node name="ClearButton" type="Button" parent="OuterMargin/RootColumn/ActionFlow"]
+text = "Unassign"

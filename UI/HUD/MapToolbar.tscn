@@ -1,0 +1,45 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/HUD/MapToolbar.cs" id="1_script"]
+[ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="2_theme"]
+
+[node name="MapToolbar" type="PanelContainer"]
+custom_minimum_size = Vector2(0, 64)
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="OuterMargin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="RootColumn" type="VBoxContainer" parent="OuterMargin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HeaderRow" type="HBoxContainer" parent="OuterMargin/RootColumn"]
+theme_override_constants/separation = 8
+
+[node name="TitleColumn" type="VBoxContainer" parent="OuterMargin/RootColumn/HeaderRow"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="MapTitleLabel" type="Label" parent="OuterMargin/RootColumn/HeaderRow/TitleColumn"]
+text = "Map"
+
+[node name="HintLabel" type="Label" parent="OuterMargin/RootColumn/HeaderRow/TitleColumn"]
+text = "Select a tile or nearby resource."
+text_overrun_behavior = 3
+
+[node name="CoordsLabel" type="Label" parent="OuterMargin/RootColumn/HeaderRow"]
+custom_minimum_size = Vector2(88, 0)
+horizontal_alignment = 2
+text = "X: 0 Y: 0"
+text_overrun_behavior = 3
+
+[node name="StatusLabel" type="Label" parent="OuterMargin/RootColumn"]
+size_flags_horizontal = 3
+text = ""
+text_overrun_behavior = 3
