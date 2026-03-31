@@ -54,11 +54,13 @@ public partial class SelectedResourcePanel : PanelContainer
         _cancelButton = GetNode<Button>("OuterMargin/RootColumn/ActionButtons/CancelButton");
 
         MouseFilter = MouseFilterEnum.Stop;
+        Resized += UpdateResponsiveLayout;
 
         _primaryButton.Pressed += () => PrimaryActionRequested?.Invoke();
         _secondaryButton.Pressed += () => SecondaryActionRequested?.Invoke();
         _tertiaryButton.Pressed += () => TertiaryActionRequested?.Invoke();
         _cancelButton.Pressed += () => CancelRequested?.Invoke();
+        UpdateResponsiveLayout();
     }
 
     public void SetData(SelectedResourcePanelViewData data)
@@ -100,24 +102,24 @@ public partial class SelectedResourcePanel : PanelContainer
         iconMedallion.AddThemeStyleboxOverride("panel", SelectionPanelStyles.CreateMedallionStyle(data.AccentColor));
         iconLabel.Text = data.IconGlyph;
         iconLabel.AddThemeColorOverride("font_color", new Color(0.19f, 0.11f, 0.05f));
-        iconLabel.AddThemeFontSizeOverride("font_size", 22);
+        iconLabel.AddThemeFontSizeOverride("font_size", 20);
 
         titleLabel.Text = data.Title;
         titleLabel.AddThemeColorOverride("font_color", new Color(0.98f, 0.92f, 0.79f));
         titleLabel.AddThemeColorOverride("font_shadow_color", new Color(0.08f, 0.05f, 0.03f, 0.84f));
         titleLabel.AddThemeConstantOverride("shadow_offset_x", 1);
         titleLabel.AddThemeConstantOverride("shadow_offset_y", 1);
-        titleLabel.AddThemeFontSizeOverride("font_size", 20);
+        titleLabel.AddThemeFontSizeOverride("font_size", 18);
 
         tagPanel.Visible = data.ShowTag && !string.IsNullOrWhiteSpace(data.TagText);
         tagPanel.AddThemeStyleboxOverride("panel", SelectionPanelStyles.CreateBadgeStyle(data.AccentColor));
         tagLabel.Text = data.TagText;
         tagLabel.AddThemeColorOverride("font_color", new Color(0.20f, 0.11f, 0.05f));
-        tagLabel.AddThemeFontSizeOverride("font_size", 10);
+        tagLabel.AddThemeFontSizeOverride("font_size", 9);
 
         subtitleLabel.Text = data.Subtitle;
         subtitleLabel.AddThemeColorOverride("font_color", new Color(0.88f, 0.82f, 0.74f));
-        subtitleLabel.AddThemeFontSizeOverride("font_size", 12);
+        subtitleLabel.AddThemeFontSizeOverride("font_size", 11);
         subtitleLabel.TooltipText = data.Subtitle;
         headerDivider.AddThemeStyleboxOverride("panel", SelectionPanelStyles.CreateDividerStyle());
 
@@ -144,7 +146,7 @@ public partial class SelectedResourcePanel : PanelContainer
         progressionLabel.AddThemeColorOverride("font_color", data.EmphasizeProgression
             ? new Color(0.21f, 0.11f, 0.05f)
             : new Color(0.93f, 0.86f, 0.74f));
-        progressionLabel.AddThemeFontSizeOverride("font_size", 11);
+        progressionLabel.AddThemeFontSizeOverride("font_size", 10);
 
         actionNotePanel.Visible = !string.IsNullOrWhiteSpace(data.ActionNoteText);
         actionNotePanel.AddThemeStyleboxOverride("panel", SelectionPanelStyles.CreateInsetStyle(
@@ -156,17 +158,18 @@ public partial class SelectedResourcePanel : PanelContainer
         actionNoteLabel.Text = data.ActionNoteText;
         actionNoteLabel.TooltipText = data.ActionNoteText;
         actionNoteLabel.AddThemeColorOverride("font_color", new Color(0.96f, 0.89f, 0.68f));
-        actionNoteLabel.AddThemeFontSizeOverride("font_size", 11);
+        actionNoteLabel.AddThemeFontSizeOverride("font_size", 10);
 
-        ConfigureButton(primaryButton, data.PrimaryAction, data.AccentColor, true, new Vector2(0.0f, 40.0f), 16);
-        ConfigureButton(secondaryButton, data.SecondaryAction, data.AccentColor.Darkened(0.10f), false, new Vector2(0.0f, 30.0f), 13);
-        ConfigureButton(tertiaryButton, data.TertiaryAction, data.AccentColor.Darkened(0.18f), false, new Vector2(0.0f, 28.0f), 12);
+        ConfigureButton(primaryButton, data.PrimaryAction, data.AccentColor, true, new Vector2(0.0f, 36.0f), 14);
+        ConfigureButton(secondaryButton, data.SecondaryAction, data.AccentColor.Darkened(0.10f), false, new Vector2(0.0f, 28.0f), 12);
+        ConfigureButton(tertiaryButton, data.TertiaryAction, data.AccentColor.Darkened(0.18f), false, new Vector2(0.0f, 26.0f), 11);
 
         cancelButton.Visible = data.ShowCancelAction;
         cancelButton.Text = data.CancelActionText;
         cancelButton.Disabled = false;
         SelectionPanelStyles.ApplyActionButtonStyle(cancelButton, new Color(0.63f, 0.48f, 0.28f), false, new Vector2(0.0f, 24.0f), 11);
 
+        UpdateResponsiveLayout();
         Visible = true;
         AnimateShow();
     }
@@ -183,6 +186,17 @@ public partial class SelectedResourcePanel : PanelContainer
         button.TooltipText = action.TooltipText;
         button.Disabled = !action.Enabled;
         SelectionPanelStyles.ApplyActionButtonStyle(button, accent, primary, minimumSize, fontSize);
+    }
+
+    private void UpdateResponsiveLayout()
+    {
+        if (_statsGrid is null)
+        {
+            return;
+        }
+
+        float width = Size.X > 0.0f ? Size.X : GetRect().Size.X;
+        _statsGrid.Columns = width < 420.0f ? 1 : 2;
     }
 
     private void AnimateShow()

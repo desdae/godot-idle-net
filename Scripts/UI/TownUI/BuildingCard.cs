@@ -49,7 +49,7 @@ public partial class BuildingCard : PanelContainer
         _costsContainer = GetNode<HFlowContainer>("Outer/MainColumn/DetailBlock/CostsContainer");
         _progressBar = GetNode<ProgressBar>("Outer/MainColumn/DetailBlock/ConstructionProgress");
         _progressLabel = GetNode<Label>("Outer/MainColumn/DetailBlock/ProgressLabel");
-        _actionButton = GetNode<Button>("Outer/MainColumn/HeaderRow/ActionButton");
+        _actionButton = GetNode<Button>("Outer/MainColumn/ActionRow/ActionButton");
 
         MouseFilter = MouseFilterEnum.Stop;
         AddThemeStyleboxOverride("panel", CreateCardStyle(new Color(0.79f, 0.69f, 0.53f, 0.95f), new Color(0.61f, 0.45f, 0.25f, 0.88f), false));
@@ -329,6 +329,6 @@ public partial class BuildingCard : PanelContainer
         button.AddThemeStyleboxOverride("hover", CreateCardStyle(baseColor.Lightened(0.20f), borderColor.Lightened(0.10f), false));
         button.AddThemeStyleboxOverride("pressed", CreateCardStyle(baseColor.Darkened(0.08f), borderColor, false));
         button.AddThemeStyleboxOverride("disabled", CreateCardStyle(new Color(0.56f, 0.51f, 0.47f, 0.56f), new Color(0.58f, 0.54f, 0.49f, 0.38f), false));
-        button.CustomMinimumSize = new Vector2(112.0f, 36.0f);
+        button.CustomMinimumSize = new Vector2(112.0f, 34.0f);
     }
 }

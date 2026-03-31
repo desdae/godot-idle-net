@@ -13,20 +13,20 @@ public sealed class ResourceStatViewData
 
 public partial class TopResourceBar : PanelContainer
 {
-    private HBoxContainer? _statsRow;
+    private HFlowContainer? _statsRow;
     private readonly Dictionary<string, PanelContainer> _statCards = new();
     private readonly Dictionary<string, Label> _valueLabels = new();
 
     public override void _Ready()
     {
-        _statsRow = GetNode<HBoxContainer>("OuterMargin/StatsRow");
+        _statsRow = GetNode<HFlowContainer>("OuterMargin/StatsRow");
 
         AddThemeStyleboxOverride("panel", SelectionPanelStyles.CreateInsetStyle(
-            new Color(0.12f, 0.09f, 0.06f, 0.96f),
-            new Color(0.52f, 0.40f, 0.22f, 0.90f),
-            20,
-            10,
-            8));
+            new Color(0.07f, 0.10f, 0.08f, 1.0f),
+            new Color(0.34f, 0.46f, 0.31f, 0.74f),
+            22,
+            14,
+            10));
     }
 
     public void SetData(IReadOnlyList<ResourceStatViewData> stats)
@@ -78,7 +78,7 @@ public partial class TopResourceBar : PanelContainer
         PanelContainer card = new()
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(78.0f, 40.0f),
+            CustomMinimumSize = new Vector2(104.0f, 54.0f),
         };
 
         MarginContainer margin = new() { Name = "CardMargin" };
@@ -92,10 +92,10 @@ public partial class TopResourceBar : PanelContainer
         column.AddThemeConstantOverride("separation", 0);
 
         Label valueLabel = new() { Name = "Value" };
-        valueLabel.AddThemeFontSizeOverride("font_size", 15);
+        valueLabel.AddThemeFontSizeOverride("font_size", 18);
 
         Label labelLabel = new() { Name = "Label" };
-        labelLabel.AddThemeFontSizeOverride("font_size", 10);
+        labelLabel.AddThemeFontSizeOverride("font_size", 11);
         labelLabel.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         labelLabel.ClipText = true;
 

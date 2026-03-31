@@ -16,8 +16,8 @@ public partial class MapPanel : Control
         PanelContainer backdrop = GetNode<PanelContainer>("Backdrop");
         backdrop.MouseFilter = MouseFilterEnum.Ignore;
         backdrop.AddThemeStyleboxOverride("panel", SelectionPanelStyles.CreateInsetStyle(
-            new Color(0.08f, 0.11f, 0.08f, 0.14f),
-            new Color(0.32f, 0.40f, 0.28f, 0.34f),
+            new Color(0.03f, 0.07f, 0.05f, 0.82f),
+            new Color(0.20f, 0.31f, 0.23f, 0.50f),
             24,
             0,
             0));

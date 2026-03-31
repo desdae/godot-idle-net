@@ -4,46 +4,49 @@
 [ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="2_theme"]
 
 [node name="NavigationRail" type="PanelContainer"]
-custom_minimum_size = Vector2(88, 0)
+custom_minimum_size = Vector2(0, 68)
 theme = ExtResource("2_theme")
 script = ExtResource("1_script")
 
 [node name="OuterMargin" type="MarginContainer" parent="."]
 layout_mode = 2
-theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
 
-[node name="RootColumn" type="VBoxContainer" parent="OuterMargin"]
+[node name="RootColumn" type="HFlowContainer" parent="OuterMargin"]
 layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 8
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
 
 [node name="SelectionButton" type="Button" parent="OuterMargin/RootColumn"]
-custom_minimum_size = Vector2(0, 56)
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 48)
 text = "Map"
 tooltip_text = "Map"
 
 [node name="BuildingsButton" type="Button" parent="OuterMargin/RootColumn"]
-custom_minimum_size = Vector2(0, 56)
-text = "Build"
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 48)
+text = "Works"
 tooltip_text = "Buildings"
 
 [node name="QueueButton" type="Button" parent="OuterMargin/RootColumn"]
-custom_minimum_size = Vector2(0, 56)
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 48)
 text = "Queue"
 tooltip_text = "Action Queue"
 
 [node name="TownButton" type="Button" parent="OuterMargin/RootColumn"]
-custom_minimum_size = Vector2(0, 56)
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 48)
 text = "Town"
 tooltip_text = "Town Ledger"
 
 [node name="PeopleButton" type="Button" parent="OuterMargin/RootColumn"]
-custom_minimum_size = Vector2(0, 56)
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 48)
 text = "People"
 tooltip_text = "Worker Roster"
-
-[node name="BottomSpacer" type="Control" parent="OuterMargin/RootColumn"]
-size_flags_vertical = 3

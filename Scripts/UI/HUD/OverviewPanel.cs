@@ -14,6 +14,7 @@ public sealed class OverviewPanelViewData
 
 public partial class OverviewPanel : PanelContainer
 {
+    private Label? _sectionKickerLabel;
     private Label? _panelTitleLabel;
     private Label? _panelSubtitleLabel;
     private ScrollContainer? _townSummaryScroll;
@@ -34,37 +35,53 @@ public partial class OverviewPanel : PanelContainer
 
     public override void _Ready()
     {
-        _panelTitleLabel = GetNode<Label>("OuterMargin/RootColumn/HeaderColumn/PanelTitleLabel");
-        _panelSubtitleLabel = GetNode<Label>("OuterMargin/RootColumn/HeaderColumn/PanelSubtitleLabel");
-        _townSummaryScroll = GetNode<ScrollContainer>("OuterMargin/RootColumn/ContentHost/TownSummaryScroll");
-        _overviewBodyLabel = GetNode<Label>("OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/OverviewCard/CardMargin/CardColumn/BodyLabel");
-        _housingBodyLabel = GetNode<Label>("OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/HousingCard/CardMargin/CardColumn/BodyLabel");
-        _productionBodyLabel = GetNode<Label>("OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/ProductionCard/CardMargin/CardColumn/BodyLabel");
-        _alertsList = GetNode<VBoxContainer>("OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/AlertsCard/CardMargin/CardColumn/AlertsList");
+        const string headerRoot = "OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderColumn";
+        const string contentRoot = "OuterMargin/RootColumn/ContentFrame/ContentMargin/ContentHost";
 
-        _selectionView = GetNode<SelectionView>("OuterMargin/RootColumn/ContentHost/SelectionView");
-        _queueView = GetNode<QueueView>("OuterMargin/RootColumn/ContentHost/QueueView");
-        _townUi = GetNode<TownUI>("OuterMargin/RootColumn/ContentHost/TownUI");
-        _peopleView = GetNode<PeopleView>("OuterMargin/RootColumn/ContentHost/PeopleView");
+        _sectionKickerLabel = GetNode<Label>($"{headerRoot}/SectionKickerLabel");
+        _panelTitleLabel = GetNode<Label>($"{headerRoot}/PanelTitleLabel");
+        _panelSubtitleLabel = GetNode<Label>($"{headerRoot}/PanelSubtitleLabel");
+        _townSummaryScroll = GetNode<ScrollContainer>($"{contentRoot}/TownSummaryScroll");
+        _overviewBodyLabel = GetNode<Label>($"{contentRoot}/TownSummaryScroll/TownSummaryColumn/OverviewCard/CardMargin/CardColumn/BodyLabel");
+        _housingBodyLabel = GetNode<Label>($"{contentRoot}/TownSummaryScroll/TownSummaryColumn/HousingCard/CardMargin/CardColumn/BodyLabel");
+        _productionBodyLabel = GetNode<Label>($"{contentRoot}/TownSummaryScroll/TownSummaryColumn/ProductionCard/CardMargin/CardColumn/BodyLabel");
+        _alertsList = GetNode<VBoxContainer>($"{contentRoot}/TownSummaryScroll/TownSummaryColumn/AlertsCard/CardMargin/CardColumn/AlertsList");
 
-        AddThemeStyleboxOverride("panel", SelectionPanelStyles.CreateInsetStyle(
-            new Color(0.13f, 0.10f, 0.07f, 0.96f),
-            new Color(0.53f, 0.41f, 0.23f, 0.88f),
+        _selectionView = GetNode<SelectionView>($"{contentRoot}/SelectionView");
+        _queueView = GetNode<QueueView>($"{contentRoot}/QueueView");
+        _townUi = GetNode<TownUI>($"{contentRoot}/TownUI");
+        _peopleView = GetNode<PeopleView>($"{contentRoot}/PeopleView");
+
+        AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
+        GetNode<PanelContainer>("OuterMargin/RootColumn/HeaderPanel").AddThemeStyleboxOverride("panel", SelectionPanelStyles.CreateInsetStyle(
+            new Color(0.08f, 0.11f, 0.08f, 1.0f),
+            new Color(0.34f, 0.46f, 0.32f, 0.76f),
+            24,
+            12,
+            12));
+        GetNode<PanelContainer>("OuterMargin/RootColumn/ContentFrame").AddThemeStyleboxOverride("panel", SelectionPanelStyles.CreateInsetStyle(
+            new Color(0.12f, 0.09f, 0.07f, 1.0f),
+            new Color(0.48f, 0.39f, 0.24f, 0.76f),
             24,
             10,
             10));
 
-        _panelTitleLabel.AddThemeColorOverride("font_color", new Color(0.97f, 0.92f, 0.80f));
-        _panelTitleLabel.AddThemeFontSizeOverride("font_size", 22);
-        _panelSubtitleLabel.AddThemeColorOverride("font_color", new Color(0.84f, 0.80f, 0.73f));
-        _panelSubtitleLabel.AddThemeFontSizeOverride("font_size", 12);
-        _panelSubtitleLabel.MaxLinesVisible = 1;
-        _panelSubtitleLabel.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        _sectionKickerLabel?.AddThemeColorOverride("font_color", new Color(0.76f, 0.91f, 0.77f));
+        _sectionKickerLabel?.AddThemeFontSizeOverride("font_size", 10);
+        _panelTitleLabel?.AddThemeColorOverride("font_color", new Color(0.97f, 0.92f, 0.80f));
+        _panelTitleLabel?.AddThemeFontSizeOverride("font_size", 24);
+        _panelSubtitleLabel?.AddThemeColorOverride("font_color", new Color(0.84f, 0.88f, 0.82f));
+        _panelSubtitleLabel?.AddThemeFontSizeOverride("font_size", 13);
+        if (_panelSubtitleLabel is not null)
+        {
+            _panelSubtitleLabel.MaxLinesVisible = 1;
+            _panelSubtitleLabel.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        }
 
-        ApplyCardStyle("OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/OverviewCard");
-        ApplyCardStyle("OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/HousingCard");
-        ApplyCardStyle("OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/ProductionCard");
-        ApplyCardStyle("OuterMargin/RootColumn/ContentHost/TownSummaryScroll/TownSummaryColumn/AlertsCard");
+        ApplyCardStyle($"{contentRoot}/TownSummaryScroll/TownSummaryColumn/OverviewCard");
+        ApplyCardStyle($"{contentRoot}/TownSummaryScroll/TownSummaryColumn/HousingCard");
+        ApplyCardStyle($"{contentRoot}/TownSummaryScroll/TownSummaryColumn/ProductionCard");
+        ApplyCardStyle($"{contentRoot}/TownSummaryScroll/TownSummaryColumn/AlertsCard");
 
         ShowContext(HudSection.People);
     }

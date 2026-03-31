@@ -4,17 +4,18 @@
 [ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="2_theme"]
 
 [node name="TopResourceBar" type="PanelContainer"]
-custom_minimum_size = Vector2(0, 60)
+custom_minimum_size = Vector2(0, 72)
 theme = ExtResource("2_theme")
 script = ExtResource("1_script")
 
 [node name="OuterMargin" type="MarginContainer" parent="."]
 layout_mode = 2
-theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 6
-theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 6
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
 
-[node name="StatsRow" type="HBoxContainer" parent="OuterMargin"]
+[node name="StatsRow" type="HFlowContainer" parent="OuterMargin"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10

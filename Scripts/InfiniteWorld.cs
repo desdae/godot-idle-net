@@ -73,6 +73,7 @@ public partial class InfiniteWorld : Node2D
 	private readonly Dictionary<Vector2I, FrontierTileState> _frontierTileStates = new();
 
 	private PlayerController? _player;
+	private Camera2D? _camera;
 	private Label? _coordsLabel;
 	private Label? _statusLabel;
 	private Label? _hintLabel;
@@ -107,6 +108,7 @@ public partial class InfiniteWorld : Node2D
 	public override void _Ready()
 	{
 		_player = GetNode<PlayerController>("Player");
+		_camera = GetNode<Camera2D>("Player/Camera2D");
 		_gameHud = GetNode<GameHUD>("Hud/GameHUD");
 		_coordsLabel = _gameHud.CoordsLabel;
 		_hintLabel = _gameHud.HintLabel;
@@ -135,6 +137,7 @@ public partial class InfiniteWorld : Node2D
 
 	public override void _Process(double delta)
 	{
+		UpdateCameraFraming();
 		UpdateRunningSkill(delta);
 		UpdateCoordsLabel();
 		ProcessGatherCommand(delta);
@@ -3835,6 +3838,35 @@ public partial class InfiniteWorld : Node2D
 		int exploringLevel = _characterState.GetSkillLevel(GameCatalog.Exploring.Id);
 		double speedMultiplier = System.Math.Pow(Rules.ExploringSpeedMultiplierPerLevel, exploringLevel - 1);
 		return Rules.ExploreDurationSeconds / speedMultiplier;
+	}
+
+	private void UpdateCameraFraming()
+	{
+		if (_camera is null || _gameHud?.MapPanel is null)
+		{
+			return;
+		}
+
+		Rect2 mapRect = _gameHud.MapPanel.GetGlobalRect();
+		if (mapRect.Size.X <= 0.0f || mapRect.Size.Y <= 0.0f)
+		{
+			return;
+		}
+
+		float topInset = 0.0f;
+		if (_gameHud.MapPanel.MapToolbar is { } toolbar)
+		{
+			Rect2 toolbarRect = toolbar.GetGlobalRect();
+			topInset = Mathf.Max(0.0f, toolbarRect.End.Y - mapRect.Position.Y) + 12.0f;
+		}
+
+		float playableHeight = Mathf.Max(96.0f, mapRect.Size.Y - topInset);
+		Vector2 desiredScreenPoint = new(
+			mapRect.Position.X + (mapRect.Size.X * 0.5f),
+			mapRect.Position.Y + topInset + (playableHeight * 0.5f));
+		Vector2 viewportCenter = GetViewportRect().Size * 0.5f;
+
+		_camera.Offset = viewportCenter - desiredScreenPoint;
 	}
 
 	private Rect2 GetVisibleWorldRect()

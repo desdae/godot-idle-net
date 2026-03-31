@@ -20,11 +20,11 @@ public partial class NavigationRail : PanelContainer
         RegisterButton(HudSection.People, "OuterMargin/RootColumn/PeopleButton", new Color(0.64f, 0.78f, 0.53f));
 
         AddThemeStyleboxOverride("panel", SelectionPanelStyles.CreateInsetStyle(
-            new Color(0.14f, 0.10f, 0.07f, 0.94f),
-            new Color(0.48f, 0.36f, 0.20f, 0.88f),
-            20,
-            8,
-            8));
+            new Color(0.08f, 0.11f, 0.08f, 1.0f),
+            new Color(0.36f, 0.47f, 0.31f, 0.72f),
+            22,
+            12,
+            10));
 
         SetActiveSection(_activeSection);
     }
@@ -59,19 +59,19 @@ public partial class NavigationRail : PanelContainer
 
         Color fontColor = active ? new Color(0.20f, 0.11f, 0.05f) : new Color(0.95f, 0.89f, 0.78f);
         Color baseColor = active
-            ? accent.Lerp(new Color(0.92f, 0.80f, 0.52f, 0.98f), 0.32f)
-            : new Color(0.27f, 0.19f, 0.12f, 0.92f);
+            ? accent.Lerp(new Color(0.92f, 0.84f, 0.58f, 0.98f), 0.30f)
+            : new Color(0.15f, 0.18f, 0.14f, 0.90f);
         Color borderColor = active
-            ? accent.Lerp(new Color(1.0f, 0.90f, 0.66f, 0.98f), 0.42f)
-            : accent.Lerp(new Color(0.64f, 0.52f, 0.30f, 0.76f), 0.50f);
+            ? accent.Lerp(new Color(1.0f, 0.92f, 0.68f, 0.98f), 0.40f)
+            : accent.Lerp(new Color(0.46f, 0.57f, 0.40f, 0.72f), 0.38f);
 
         button.AddThemeColorOverride("font_color", fontColor);
         button.AddThemeColorOverride("font_disabled_color", new Color(0.60f, 0.55f, 0.50f));
-        button.AddThemeFontSizeOverride("font_size", active ? 11 : 10);
-        button.AddThemeStyleboxOverride("normal", SelectionPanelStyles.CreateInsetStyle(baseColor, borderColor, 18, 6, 8));
-        button.AddThemeStyleboxOverride("hover", SelectionPanelStyles.CreateInsetStyle(baseColor.Lightened(0.08f), borderColor.Lightened(0.08f), 18, 6, 8));
-        button.AddThemeStyleboxOverride("pressed", SelectionPanelStyles.CreateInsetStyle(baseColor.Darkened(0.08f), borderColor, 18, 6, 8));
-        button.AddThemeStyleboxOverride("focus", SelectionPanelStyles.CreateInsetStyle(baseColor.Lightened(0.08f), borderColor.Lightened(0.08f), 18, 6, 8));
-        button.Scale = active ? new Vector2(1.03f, 1.03f) : Vector2.One;
+        button.AddThemeFontSizeOverride("font_size", active ? 13 : 12);
+        button.AddThemeStyleboxOverride("normal", SelectionPanelStyles.CreateInsetStyle(baseColor, borderColor, 16, 12, 9));
+        button.AddThemeStyleboxOverride("hover", SelectionPanelStyles.CreateInsetStyle(baseColor.Lightened(0.08f), borderColor.Lightened(0.08f), 16, 12, 9));
+        button.AddThemeStyleboxOverride("pressed", SelectionPanelStyles.CreateInsetStyle(baseColor.Darkened(0.08f), borderColor, 16, 12, 9));
+        button.AddThemeStyleboxOverride("focus", SelectionPanelStyles.CreateInsetStyle(baseColor.Lightened(0.08f), borderColor.Lightened(0.08f), 16, 12, 9));
+        button.Scale = active ? new Vector2(1.01f, 1.01f) : Vector2.One;
     }
 }

@@ -20,29 +20,30 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
 
 [node name="RootColumn" type="VBoxContainer" parent="RootMargin"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 12
+theme_override_constants/separation = 14
 
 [node name="TopResourceBar" parent="RootMargin/RootColumn" instance=ExtResource("2_topbar")]
 size_flags_horizontal = 3
 
+[node name="NavigationRail" parent="RootMargin/RootColumn" instance=ExtResource("3_rail")]
+size_flags_horizontal = 3
+
 [node name="MainRow" type="HBoxContainer" parent="RootMargin/RootColumn"]
 size_flags_vertical = 3
-theme_override_constants/separation = 12
-
-[node name="NavigationRail" parent="RootMargin/RootColumn/MainRow" instance=ExtResource("3_rail")]
-custom_minimum_size = Vector2(84, 0)
-
-[node name="OverviewPanel" parent="RootMargin/RootColumn/MainRow" instance=ExtResource("4_overview")]
-custom_minimum_size = Vector2(420, 0)
+theme_override_constants/separation = 18
 
 [node name="MapPanel" parent="RootMargin/RootColumn/MainRow" instance=ExtResource("5_map")]
 size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="OverviewPanel" parent="RootMargin/RootColumn/MainRow" instance=ExtResource("4_overview")]
+custom_minimum_size = Vector2(432, 0)
 size_flags_vertical = 3

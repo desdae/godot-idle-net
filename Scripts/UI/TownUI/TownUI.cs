@@ -30,6 +30,7 @@ public partial class TownUI : Control
     private PanelContainer? _overviewPanel;
     private PanelContainer? _buildPanel;
     private PanelContainer? _footerPanel;
+    private ScrollContainer? _bodyScroll;
     private Label? _stockpileLabel;
     private ProgressBar? _stockpileBar;
     private Label? _stockpileUpgradeLabel;
@@ -66,6 +67,7 @@ public partial class TownUI : Control
         _overviewPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel");
         _buildPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel");
         _footerPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/FooterPanel");
+        _bodyScroll = GetNode<ScrollContainer>("Frame/OuterMargin/RootColumn/BodyScroll");
         _stockpileLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileLabel");
         _stockpileBar = GetNode<ProgressBar>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileBar");
         _stockpileUpgradeLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileMetaRow/StockpileUpgradeLabel");
@@ -411,6 +413,11 @@ public partial class TownUI : Control
                 _titleLabel.Text = "Starter Town";
                 _closeButton.Text = "Close Ledger";
                 break;
+        }
+
+        if (_bodyScroll is not null)
+        {
+            _bodyScroll.ScrollVertical = 0;
         }
     }
 

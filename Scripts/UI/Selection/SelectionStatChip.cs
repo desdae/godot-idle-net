@@ -40,17 +40,17 @@ public partial class SelectionStatChip : PanelContainer
         iconLabel.Text = data.IconGlyph;
         iconLabel.TooltipText = data.TooltipText;
         iconLabel.AddThemeColorOverride("font_color", data.AccentColor.Darkened(0.42f));
-        iconLabel.AddThemeFontSizeOverride("font_size", 13);
+        iconLabel.AddThemeFontSizeOverride("font_size", 12);
 
         labelText.Text = data.Label;
         labelText.TooltipText = data.TooltipText;
         labelText.AddThemeColorOverride("font_color", new Color(0.86f, 0.77f, 0.62f));
-        labelText.AddThemeFontSizeOverride("font_size", 10);
+        labelText.AddThemeFontSizeOverride("font_size", 9);
 
         valueText.Text = data.Value;
         valueText.TooltipText = data.TooltipText;
         valueText.AddThemeColorOverride("font_color", new Color(0.98f, 0.91f, 0.78f));
-        valueText.AddThemeFontSizeOverride("font_size", 13);
+        valueText.AddThemeFontSizeOverride("font_size", 12);
 
         TooltipText = data.TooltipText;
     }
