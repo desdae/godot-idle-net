@@ -6,6 +6,7 @@ public sealed class TownState
 {
     private readonly Dictionary<string, int> _storedCounts = new();
     private readonly Dictionary<string, BuildingState> _buildingStates = new();
+    private readonly List<VillagerState> _villagers = new();
 
     public TownState(IEnumerable<ItemDefinition> items, IEnumerable<BuildingDefinition> buildings, int stockpileCapacity)
     {
@@ -34,6 +35,10 @@ public sealed class TownState
 
     public int Gold { get; private set; }
 
+    public int VillagerCount => _villagers.Count;
+
+    public IReadOnlyList<VillagerState> Villagers => _villagers;
+
     public BuildingState GetBuildingState(string buildingId)
     {
         return _buildingStates[buildingId];
@@ -42,6 +47,24 @@ public sealed class TownState
     public IEnumerable<BuildingState> GetBuildingStates()
     {
         return _buildingStates.Values;
+    }
+
+    public void RecruitVillager(VillagerState villager)
+    {
+        _villagers.Add(villager);
+    }
+
+    public VillagerState? GetVillager(string villagerId)
+    {
+        foreach (VillagerState villager in _villagers)
+        {
+            if (villager.Id == villagerId)
+            {
+                return villager;
+            }
+        }
+
+        return null;
     }
 
     public int Store(string itemId, int amount)

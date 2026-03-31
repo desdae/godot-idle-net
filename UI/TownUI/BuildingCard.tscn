@@ -48,11 +48,12 @@ text = "House"
 text = "Lv.1/3"
 
 [node name="SummaryLabel" type="Label" parent="Outer/MainColumn/HeaderRow/Info"]
-clip_text = true
+autowrap_mode = 2
 text = "Description"
 
-[node name="MetaRow" type="HBoxContainer" parent="Outer/MainColumn/HeaderRow/Info"]
-theme_override_constants/separation = 10
+[node name="MetaRow" type="HFlowContainer" parent="Outer/MainColumn/HeaderRow/Info"]
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 4
 
 [node name="StatusLabel" type="Label" parent="Outer/MainColumn/HeaderRow/Info/MetaRow"]
 size_flags_horizontal = 3
@@ -62,11 +63,17 @@ text = "Idle"
 text = "Build 20s"
 
 [node name="ShortRequirementLabel" type="Label" parent="Outer/MainColumn/HeaderRow/Info"]
-clip_text = true
+autowrap_mode = 2
 text = "Requires Building 1"
 
-[node name="ActionButton" type="Button" parent="Outer/MainColumn/HeaderRow"]
-custom_minimum_size = Vector2(112, 36)
+[node name="ActionRow" type="HBoxContainer" parent="Outer/MainColumn"]
+theme_override_constants/separation = 6
+
+[node name="ActionSpacer" type="Control" parent="Outer/MainColumn/ActionRow"]
+size_flags_horizontal = 3
+
+[node name="ActionButton" type="Button" parent="Outer/MainColumn/ActionRow"]
+custom_minimum_size = Vector2(112, 34)
 text = "Build"
 
 [node name="DetailBlock" type="VBoxContainer" parent="Outer/MainColumn"]

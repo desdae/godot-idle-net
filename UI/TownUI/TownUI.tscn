@@ -108,8 +108,9 @@ text = "Stockpile 0/100"
 custom_minimum_size = Vector2(0, 14)
 show_percentage = false
 
-[node name="StockpileMetaRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn"]
-theme_override_constants/separation = 8
+[node name="StockpileMetaRow" type="HFlowContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn"]
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 6
 
 [node name="StockpileUpgradeLabel" type="Label" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileMetaRow"]
 size_flags_horizontal = 3
@@ -120,7 +121,7 @@ text = "Upgrade summary"
 custom_minimum_size = Vector2(136, 28)
 text = "Queue Upgrade"
 
-[node name="CommerceRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn"]
+[node name="CommerceRow" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn"]
 theme_override_constants/separation = 6
 
 [node name="ResourceColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow"]
@@ -134,8 +135,8 @@ text = "Stockyard"
 theme_override_constants/separation = 3
 
 [node name="CommerceDivider" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow"]
-custom_minimum_size = Vector2(2, 0)
-size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 2)
+size_flags_horizontal = 3
 
 [node name="SellColumn" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/CommerceRow"]
 custom_minimum_size = Vector2(156, 0)
@@ -258,7 +259,7 @@ theme_override_constants/margin_bottom = 6
 layout_mode = 2
 theme_override_constants/separation = 5
 
-[node name="BuildTopRow" type="HBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn"]
+[node name="BuildTopRow" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn"]
 theme_override_constants/separation = 6
 
 [node name="BuildHeader" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow" instance=ExtResource("2_header")]
@@ -267,7 +268,7 @@ TitleText = "Build & Upgrade"
 GemGlyph = "@"
 
 [node name="FilterFrame" type="PanelContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow"]
-custom_minimum_size = Vector2(156, 0)
+size_flags_horizontal = 3
 
 [node name="FilterMargin" type="MarginContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame"]
 layout_mode = 2
@@ -288,12 +289,12 @@ text = "All"
 [node name="AvailableButton" type="Button" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow"]
 size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 24)
-text = "Build"
+text = "New"
 
 [node name="ExistingButton" type="Button" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn/BuildTopRow/FilterFrame/FilterMargin/FilterRow"]
 size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 24)
-text = "Owned"
+text = "Built"
 
 [node name="BuildingList" type="VBoxContainer" parent="Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel/BuildMargin/BuildColumn"]
 theme_override_constants/separation = 6

@@ -1,0 +1,50 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/HUD/BulkActionBar.cs" id="1_script"]
+[ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="2_theme"]
+
+[node name="BulkActionBar" type="PanelContainer"]
+custom_minimum_size = Vector2(0, 96)
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="OuterMargin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="RootColumn" type="VBoxContainer" parent="OuterMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SummaryLabel" type="Label" parent="OuterMargin/RootColumn"]
+text = "No villagers selected"
+text_overrun_behavior = 3
+
+[node name="DetailLabel" type="Label" parent="OuterMargin/RootColumn"]
+text = "Select villagers from the roster to unlock bulk actions."
+text_overrun_behavior = 3
+
+[node name="ActionsFlow" type="HFlowContainer" parent="OuterMargin/RootColumn"]
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+
+[node name="ChopButton" type="Button" parent="OuterMargin/RootColumn/ActionsFlow"]
+text = "Chop"
+
+[node name="MineButton" type="Button" parent="OuterMargin/RootColumn/ActionsFlow"]
+text = "Mine"
+
+[node name="GatherButton" type="Button" parent="OuterMargin/RootColumn/ActionsFlow"]
+text = "Gather"
+
+[node name="BuildButton" type="Button" parent="OuterMargin/RootColumn/ActionsFlow"]
+text = "Build"
+
+[node name="PrioritizeButton" type="Button" parent="OuterMargin/RootColumn/ActionsFlow"]
+text = "Prioritize"
+
+[node name="ClearButton" type="Button" parent="OuterMargin/RootColumn/ActionsFlow"]
+text = "Unassign"

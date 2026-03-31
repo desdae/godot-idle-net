@@ -45,7 +45,7 @@ public partial class TownUiSmokeTest : Node
 
 			await WaitFrames(3);
 
-			_townUi = _world.GetNode<TownUI>("Hud/GameHUD/RootMargin/RootColumn/MiddleRow/LeftDock/ContentFrame/ContentHost/TownUI");
+			_townUi = _world.GetNode<TownUI>("Hud/GameHUD/RootMargin/RootColumn/MainRow/OverviewPanel/OuterMargin/RootColumn/ContextFrame/ContextMargin/ContextColumn/ContextHost/TownUI");
 			GameHUD hud = _world.GetNode<GameHUD>("Hud/GameHUD");
 			_world.OpenTownUi();
 			await WaitFrames(2);

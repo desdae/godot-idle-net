@@ -30,6 +30,7 @@ public partial class TownUI : Control
     private PanelContainer? _overviewPanel;
     private PanelContainer? _buildPanel;
     private PanelContainer? _footerPanel;
+    private ScrollContainer? _bodyScroll;
     private Label? _stockpileLabel;
     private ProgressBar? _stockpileBar;
     private Label? _stockpileUpgradeLabel;
@@ -66,6 +67,7 @@ public partial class TownUI : Control
         _overviewPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/OverviewPanel");
         _buildPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/BuildPanel");
         _footerPanel = GetNode<PanelContainer>("Frame/OuterMargin/RootColumn/FooterPanel");
+        _bodyScroll = GetNode<ScrollContainer>("Frame/OuterMargin/RootColumn/BodyScroll");
         _stockpileLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileLabel");
         _stockpileBar = GetNode<ProgressBar>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileBar");
         _stockpileUpgradeLabel = GetNode<Label>("Frame/OuterMargin/RootColumn/BodyScroll/BodyMargin/BodyColumn/CommercePanel/CommerceMargin/CommerceColumn/StockpileMetaRow/StockpileUpgradeLabel");
@@ -114,7 +116,7 @@ public partial class TownUI : Control
             return;
         }
 
-        _titleLabel.Text = _currentMode == TownPanelMode.Buildings ? "Town Works" : data.SettlementTitle;
+        _titleLabel.Text = _currentMode == TownPanelMode.Buildings ? "Works" : data.SettlementTitle;
         _goldLabel.Text = $"o {data.Gold}";
         _stockpileLabel.Text = data.StockpileSummary;
         _stockpileBar.MaxValue = data.StockpileCapacity;
@@ -403,7 +405,7 @@ public partial class TownUI : Control
         switch (_currentMode)
         {
             case TownPanelMode.Buildings:
-                _titleLabel.Text = "Town Works";
+                _titleLabel.Text = "Works";
                 _ledgerLabel.Text = "Contracts, upgrades, and current worksites.";
                 _closeButton.Text = "Close Works";
                 break;
@@ -411,6 +413,11 @@ public partial class TownUI : Control
                 _titleLabel.Text = "Starter Town";
                 _closeButton.Text = "Close Ledger";
                 break;
+        }
+
+        if (_bodyScroll is not null)
+        {
+            _bodyScroll.ScrollVertical = 0;
         }
     }
 

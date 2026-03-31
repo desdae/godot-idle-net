@@ -4,6 +4,7 @@ namespace IdleNet;
 
 public partial class SelectionView : Control
 {
+    private ScrollContainer? _selectedScroll;
     private PanelContainer? _emptyStatePanel;
     private Label? _emptyTitleLabel;
     private Label? _emptyBodyLabel;
@@ -13,10 +14,11 @@ public partial class SelectionView : Control
 
     public override void _Ready()
     {
+        _selectedScroll = GetNode<ScrollContainer>("RootColumn/SelectedScroll");
         _emptyStatePanel = GetNode<PanelContainer>("RootColumn/EmptyStatePanel");
         _emptyTitleLabel = GetNode<Label>("RootColumn/EmptyStatePanel/EmptyStateMargin/EmptyStateColumn/EmptyTitleLabel");
         _emptyBodyLabel = GetNode<Label>("RootColumn/EmptyStatePanel/EmptyStateMargin/EmptyStateColumn/EmptyBodyLabel");
-        _selectedPanel = GetNode<SelectedResourcePanel>("RootColumn/SelectedResourcePanel");
+        _selectedPanel = GetNode<SelectedResourcePanel>("RootColumn/SelectedScroll/SelectedResourcePanel");
 
         _emptyStatePanel.AddThemeStyleboxOverride("panel", SelectionPanelStyles.CreateInsetStyle(
             new Color(0.16f, 0.11f, 0.08f, 0.92f),
@@ -32,23 +34,26 @@ public partial class SelectionView : Control
 
     public void ShowSelectionCard()
     {
-        if (_selectedPanel is null || _emptyStatePanel is null)
+        if (_selectedScroll is null || _selectedPanel is null || _emptyStatePanel is null)
         {
             return;
         }
 
         _emptyStatePanel.Visible = false;
+        _selectedScroll.Visible = true;
+        _selectedScroll.ScrollVertical = 0;
         _selectedPanel.Visible = true;
     }
 
     public void ShowEmptyState(string title, string body)
     {
-        if (_selectedPanel is null || _emptyStatePanel is null || _emptyTitleLabel is null || _emptyBodyLabel is null)
+        if (_selectedScroll is null || _selectedPanel is null || _emptyStatePanel is null || _emptyTitleLabel is null || _emptyBodyLabel is null)
         {
             return;
         }
 
         _selectedPanel.HidePanel();
+        _selectedScroll.Visible = false;
         _emptyStatePanel.Visible = true;
         _emptyTitleLabel.Text = title;
         _emptyBodyLabel.Text = body;

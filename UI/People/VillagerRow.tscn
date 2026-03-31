@@ -1,0 +1,55 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/People/VillagerRow.cs" id="1_script"]
+[ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="2_theme"]
+
+[node name="VillagerRow" type="PanelContainer"]
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="RowMargin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 5
+
+[node name="Row" type="HBoxContainer" parent="RowMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SelectButton" type="Button" parent="RowMargin/Row"]
+custom_minimum_size = Vector2(28, 28)
+text = "[ ]"
+
+[node name="NameLabel" type="Label" parent="RowMargin/Row"]
+custom_minimum_size = Vector2(82, 0)
+size_flags_horizontal = 3
+text = "Villager"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="RoleLabel" type="Label" parent="RowMargin/Row"]
+custom_minimum_size = Vector2(72, 0)
+text = "Role"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="TaskLabel" type="Label" parent="RowMargin/Row"]
+custom_minimum_size = Vector2(82, 0)
+size_flags_horizontal = 3
+text = "Task"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="LoadLabel" type="Label" parent="RowMargin/Row"]
+custom_minimum_size = Vector2(46, 0)
+text = "0/10"
+horizontal_alignment = 1
+
+[node name="StatusLabel" type="Label" parent="RowMargin/Row"]
+custom_minimum_size = Vector2(52, 0)
+text = "Idle"
+horizontal_alignment = 2
+clip_text = true
+text_overrun_behavior = 3

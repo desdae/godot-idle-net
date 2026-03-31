@@ -21,6 +21,28 @@ public partial class InfiniteWorld : Node2D
 
 	private static readonly Vector2I TownCell = new(0, 0);
 	private static readonly Vector2I PlayerStartCell = new(0, 1);
+	private const string FoodItemId = "berries";
+	private const string HouseBuildingId = "house";
+	private const string StarterVillagerId = "starter_wayfarer";
+	private const string StarterVillagerName = "Wayfarer";
+	private const int RecruitBaseFoodCost = 100;
+	private const double RecruitmentCostMultiplier = 1.5;
+	private const double HouseUpgradeCostMultiplier = 1.5;
+	private static readonly string[] VillagerNamePool =
+	{
+		"Alda",
+		"Bram",
+		"Cora",
+		"Dain",
+		"Elsa",
+		"Fenn",
+		"Gwen",
+		"Hale",
+		"Iris",
+		"Jora",
+		"Kellan",
+		"Lina",
+	};
 
 	private static readonly Color GrassA = new(0.44f, 0.69f, 0.33f);
 	private static readonly Color GrassB = new(0.39f, 0.63f, 0.29f);
@@ -51,6 +73,7 @@ public partial class InfiniteWorld : Node2D
 	private readonly Dictionary<Vector2I, FrontierTileState> _frontierTileStates = new();
 
 	private PlayerController? _player;
+	private Camera2D? _camera;
 	private Label? _coordsLabel;
 	private Label? _statusLabel;
 	private Label? _hintLabel;
@@ -85,44 +108,47 @@ public partial class InfiniteWorld : Node2D
 	public override void _Ready()
 	{
 		_player = GetNode<PlayerController>("Player");
+		_camera = GetNode<Camera2D>("Player/Camera2D");
 		_gameHud = GetNode<GameHUD>("Hud/GameHUD");
 		_coordsLabel = _gameHud.CoordsLabel;
 		_hintLabel = _gameHud.HintLabel;
 		_statusLabel = _gameHud.StatusLabel;
 		_townUi = _gameHud.TownUI;
-		_selectionView = _gameHud.GetNode<SelectionView>("RootMargin/RootColumn/MiddleRow/LeftDock/ContentFrame/ContentHost/SelectionView");
+		_selectionView = _gameHud.OverviewPanel?.SelectionView;
 		_peopleView = _gameHud.PeopleView;
 
 		_player.Initialize(PlayerStartCell, Rules.TileSize);
 		InitializeExploration();
 		if (_hintLabel is not null)
 		{
-			_hintLabel.Text = $"Inspect resources, towns, and villagers from the ledger rail. Bag {_characterState.BagCapacity}  Stockpile {_townState.StockpileCapacity}.";
+			_hintLabel.Text = "Select a tile or nearby resource.";
 		}
 
 		CreateHudPanels();
 		ConnectTownUi();
 		UpdateQueuePanel();
 		UpdateTownPanel();
-		UpdateStatus("Starter town at (0, 0). Click a nearby resource to begin.");
+		UpdateOverviewPanel();
+		UpdateCharacterPanel();
+		UpdateTopResourceBar();
+		UpdateStatus("Starter town ready.");
 		RenderingServer.SetDefaultClearColor(new Color(0.13f, 0.19f, 0.13f));
 	}
 
 	public override void _Process(double delta)
 	{
+		UpdateCameraFraming();
 		UpdateRunningSkill(delta);
 		UpdateCoordsLabel();
 		ProcessGatherCommand(delta);
 		UpdatePlayerProgressBar();
+		UpdateTopResourceBar();
+		UpdateOverviewPanel();
+		UpdateCharacterPanel();
 
 		if (_gameHud?.CurrentSection is HudSection.Town or HudSection.Buildings)
 		{
 			UpdateTownPanel();
-		}
-
-		if (_gameHud?.CurrentSection == HudSection.People)
-		{
-			UpdateCharacterPanel();
 		}
 
 		if (_gameHud?.CurrentSection == HudSection.Queue)
@@ -404,7 +430,13 @@ public partial class InfiniteWorld : Node2D
 			_queuePanel.Visible = true;
 		}
 
-		_selectionView?.ShowEmptyState("Selection Ledger", "Choose a resource, town, or villager to inspect work details.");
+		if (_peopleView is not null)
+		{
+			_peopleView.RecruitRequested += OnRecruitRequested;
+			_peopleView.BulkActionRequested += OnVillagerBulkActionRequested;
+		}
+
+		_selectionView?.ShowEmptyState("No selection.", "Select a tile, resource, or villager.");
 	}
 
 	private void ConnectTownUi()
@@ -1037,6 +1069,7 @@ public partial class InfiniteWorld : Node2D
 		BuildingDefinition definition = GameCatalog.GetBuilding(_activeGatherCommand.BuildingId);
 		BuildingState state = _townState.GetBuildingState(definition.Id);
 		BuildingLevelDefinition level = definition.GetLevelDefinition(_activeGatherCommand.TargetLevel);
+		IReadOnlyList<BuildingCostDefinition> effectiveCosts = GetEffectiveBuildingCosts(definition, _activeGatherCommand.TargetLevel);
 
 		if (_player.IsMoving)
 		{
@@ -1056,7 +1089,7 @@ public partial class InfiniteWorld : Node2D
 
 		if (!state.IsUnderConstruction)
 		{
-			if (!_townState.TryConsumeCosts(level.Costs))
+			if (!_townState.TryConsumeCosts(effectiveCosts))
 			{
 				CompleteCurrentCommand($"{definition.DisplayName} cannot start. The town is missing required materials.");
 				UpdateTownPanel();
@@ -1808,8 +1841,7 @@ public partial class InfiniteWorld : Node2D
 
 			case WorkKind.BuildingConstruction when !string.IsNullOrEmpty(command.BuildingId):
 				BuildingDefinition definition = GameCatalog.GetBuilding(command.BuildingId);
-				BuildingLevelDefinition level = definition.GetLevelDefinition(command.TargetLevel);
-				projectedStoredCount = System.Math.Max(0, projectedStoredCount - SumCosts(level.Costs));
+				projectedStoredCount = System.Math.Max(0, projectedStoredCount - SumCosts(GetEffectiveBuildingCosts(definition, command.TargetLevel)));
 				return;
 		}
 	}
@@ -1872,8 +1904,7 @@ public partial class InfiniteWorld : Node2D
 			!(isActiveCommand && !string.IsNullOrEmpty(command.BuildingId) && _townState.GetBuildingState(command.BuildingId).IsUnderConstruction) &&
 			!string.IsNullOrEmpty(command.BuildingId))
 		{
-			BuildingLevelDefinition level = GameCatalog.GetBuilding(command.BuildingId).GetLevelDefinition(command.TargetLevel);
-			foreach (BuildingCostDefinition cost in level.Costs)
+			foreach (BuildingCostDefinition cost in GetEffectiveBuildingCosts(GameCatalog.GetBuilding(command.BuildingId), command.TargetLevel))
 			{
 				if (cost.ItemId == itemId)
 				{
@@ -2650,7 +2681,7 @@ public partial class InfiniteWorld : Node2D
 			_selectedResourcePanel.HidePanel();
 		}
 
-		_selectionView?.ShowEmptyState("Selection Ledger", "Choose a resource, town, or villager to inspect work details.");
+		_selectionView?.ShowEmptyState("Selection", "Choose a resource, frontier tile, town, or villager to inspect it.");
 	}
 
 	private void RefreshActionPanel()
@@ -2701,7 +2732,7 @@ public partial class InfiniteWorld : Node2D
 				RefreshActionPanel();
 				if (_selectedResourcePanel?.Visible != true)
 				{
-					_selectionView?.ShowEmptyState("Selection Ledger", "Choose a resource, town, or villager to inspect work details.");
+					_selectionView?.ShowEmptyState("Selection", "Choose a resource, frontier tile, town, or villager to inspect it.");
 				}
 				break;
 		}
@@ -2777,8 +2808,186 @@ public partial class InfiniteWorld : Node2D
 		_townUi.SetData(BuildTownViewData());
 	}
 
+	private void UpdateOverviewPanel()
+	{
+		if (_gameHud?.OverviewPanel is null)
+		{
+			return;
+		}
+
+		int housingCapacity = GetHousingCapacity();
+		int queuedCount = _queuedCommands.Count + (_activeGatherCommand is null ? 0 : 1);
+		int idleVillagers = GetIdleVillagerCount();
+		int totalVillagers = GetTotalVillagerCount();
+		List<string> alerts = new();
+
+		if (_townState.GetStoredCountTotal() >= _townState.StockpileCapacity - 5)
+		{
+			alerts.Add("Stockpile nearly full.");
+		}
+
+		if (_townState.VillagerCount >= housingCapacity)
+		{
+			alerts.Add(housingCapacity <= 0
+				? "No housing available."
+				: "Housing full.");
+		}
+
+		if (idleVillagers > 0)
+		{
+			alerts.Add($"{idleVillagers} villagers idle.");
+		}
+
+		if (queuedCount == 0)
+		{
+			alerts.Add("No work queued.");
+		}
+
+		_gameHud.OverviewPanel.SetData(new OverviewPanelViewData
+		{
+			OverviewSummary = $"Stockpile {_townState.GetStoredCountTotal()}/{_townState.StockpileCapacity}. Gold {_townState.Gold}. Queue {queuedCount}.",
+			HousingSummary = $"House Lv.{_townState.GetBuildingState(HouseBuildingId).CurrentLevel}. Recruits {_townState.VillagerCount}/{housingCapacity}. Workforce {totalVillagers}. Next recruit {GetNextRecruitFoodCost()} food.",
+			ProductionSummary = $"Builder Lv.{_characterState.GetSkillLevel(GameCatalog.Building.Id)}. Structures {GameCatalog.Buildings.Count(def => _townState.GetBuildingState(def.Id).IsBuilt)}/{GameCatalog.Buildings.Count}. Idle {idleVillagers}.",
+			Alerts = alerts,
+		});
+	}
+
+	private void UpdateTopResourceBar()
+	{
+		if (_gameHud?.TopResourceBar is null)
+		{
+			return;
+		}
+
+		int storedBerries = _townState.GetStoredCount(FoodItemId);
+		int idleVillagers = GetIdleVillagerCount();
+		int storedWood = _townState.GetStoredCount("sticks") + _townState.GetStoredCount("logs");
+
+		_gameHud.TopResourceBar.SetData(new List<ResourceStatViewData>
+		{
+			new() { Id = "bag", Label = "Bag", Value = $"{_characterState.GetBagCount()}/{_characterState.BagCapacity}", AccentColor = new Color(0.72f, 0.84f, 0.92f) },
+			new() { Id = "food", Label = "Food", Value = storedBerries.ToString(CultureInfo.InvariantCulture), AccentColor = new Color(0.88f, 0.74f, 0.44f) },
+			new() { Id = "wood", Label = "Wood", Value = storedWood.ToString(CultureInfo.InvariantCulture), AccentColor = new Color(0.63f, 0.78f, 0.46f) },
+			new() { Id = "stone", Label = "Stone", Value = _townState.GetStoredCount("stones").ToString(CultureInfo.InvariantCulture), AccentColor = new Color(0.78f, 0.81f, 0.85f) },
+			new() { Id = "berries", Label = "Berries", Value = _characterState.GetBagCount("berries").ToString(CultureInfo.InvariantCulture), AccentColor = new Color(0.90f, 0.49f, 0.64f) },
+			new() { Id = "copper", Label = "Copper", Value = _townState.GetStoredCount("copper_ore").ToString(CultureInfo.InvariantCulture), AccentColor = new Color(0.87f, 0.55f, 0.33f) },
+			new() { Id = "villagers", Label = "Villagers", Value = GetTotalVillagerCount().ToString(CultureInfo.InvariantCulture), AccentColor = new Color(0.71f, 0.81f, 0.58f) },
+			new() { Id = "idle", Label = "Idle", Value = idleVillagers.ToString(CultureInfo.InvariantCulture), AccentColor = new Color(0.95f, 0.84f, 0.56f) },
+			new() { Id = "gold", Label = "Gold", Value = _townState.Gold.ToString(CultureInfo.InvariantCulture), AccentColor = new Color(0.95f, 0.83f, 0.45f) },
+		});
+	}
+
+	private int GetHousingCapacity()
+	{
+		return _townState.GetBuildingState(HouseBuildingId).CurrentLevel;
+	}
+
+	private int GetTotalVillagerCount()
+	{
+		return 1 + _townState.VillagerCount;
+	}
+
+	private int GetIdleVillagerCount()
+	{
+		int idleVillagers = _townState.Villagers.Count(v => v.Status.Equals("Idle", System.StringComparison.OrdinalIgnoreCase));
+		if (BuildStarterVillagerRow().StatusText.Equals("Idle", System.StringComparison.OrdinalIgnoreCase))
+		{
+			idleVillagers++;
+		}
+
+		return idleVillagers;
+	}
+
+	private int GetRecruitFoodCost(int villagerCount)
+	{
+		double scaledCost = RecruitBaseFoodCost * System.Math.Pow(RecruitmentCostMultiplier, villagerCount);
+		return Mathf.CeilToInt((float)scaledCost);
+	}
+
+	private int GetNextRecruitFoodCost()
+	{
+		return GetRecruitFoodCost(_townState.VillagerCount);
+	}
+
+	private string BuildRecruitButtonText(bool hasHousing, bool hasFood)
+	{
+		if (!hasHousing)
+		{
+			return "Need Housing";
+		}
+
+		if (!hasFood)
+		{
+			return "Need Food";
+		}
+
+		return "Recruit";
+	}
+
+	private string BuildRecruitHintText(int villagerCount, int housingCapacity, int foodCost, bool hasHousing, bool hasFood)
+	{
+		if (!hasHousing)
+		{
+			return "Build housing to recruit.";
+		}
+
+		if (!hasFood)
+		{
+			int missingFood = System.Math.Max(0, foodCost - _townState.GetStoredCount(FoodItemId));
+			return $"Need {missingFood} more food.";
+		}
+
+		if (villagerCount >= housingCapacity)
+		{
+			return "Housing full.";
+		}
+
+		return "Ready to recruit.";
+	}
+
+	private VillagerState CreateVillagerState(int villagerIndex)
+	{
+		string baseName = VillagerNamePool[villagerIndex % VillagerNamePool.Length];
+		int cycle = (villagerIndex / VillagerNamePool.Length) + 1;
+		string name = cycle > 1 ? $"{baseName} {cycle}" : baseName;
+		return new VillagerState
+		{
+			Id = $"villager_{villagerIndex + 1}",
+			Name = name,
+			Role = "Laborer",
+			Duty = "Idle",
+			CurrentTask = "No order",
+			LoadText = "0/10",
+			Status = "Idle",
+			Summary = "Waiting in town.",
+		};
+	}
+
+	private IReadOnlyList<BuildingCostDefinition> GetEffectiveBuildingCosts(BuildingDefinition definition, int targetLevel)
+	{
+		BuildingLevelDefinition level = definition.GetLevelDefinition(targetLevel);
+		if (definition.Id != HouseBuildingId || targetLevel <= 1)
+		{
+			return level.Costs;
+		}
+
+		double multiplier = System.Math.Pow(HouseUpgradeCostMultiplier, targetLevel - 1);
+		List<BuildingCostDefinition> scaledCosts = new();
+		foreach (BuildingCostDefinition cost in level.Costs)
+		{
+			scaledCosts.Add(new BuildingCostDefinition
+			{
+				ItemId = cost.ItemId,
+				Amount = Mathf.CeilToInt((float)(cost.Amount * multiplier)),
+			});
+		}
+
+		return scaledCosts;
+	}
+
 	private TownViewData BuildTownViewData()
 	{
+		int housingCapacity = GetHousingCapacity();
 		List<TownResourceViewData> resources = new();
 		foreach (ItemDefinition item in GameCatalog.Items)
 		{
@@ -2841,7 +3050,7 @@ public partial class InfiniteWorld : Node2D
 			WorksHint = worksHint,
 			ActiveFilter = _activeBuildingFilter,
 			LedgerText =
-				$"Town Hall  •  Stockpile Lv.{_townState.StockpileLevel}  •  Campfire  •  Builder Lv.{_characterState.GetSkillLevel(GameCatalog.Building.Id)}",
+				$"Town Hall  •  Stockpile Lv.{_townState.StockpileLevel}  •  Villagers {_townState.VillagerCount}/{housingCapacity}  •  Builder Lv.{_characterState.GetSkillLevel(GameCatalog.Building.Id)}",
 		};
 	}
 
@@ -2853,14 +3062,15 @@ public partial class InfiniteWorld : Node2D
 		int targetLevel = isBuilt ? state.CurrentLevel + 1 : 1;
 		targetLevel = Mathf.Clamp(targetLevel, 1, definition.MaxLevel);
 		BuildingLevelDefinition level = definition.GetLevelDefinition(targetLevel);
+		IReadOnlyList<BuildingCostDefinition> effectiveCosts = GetEffectiveBuildingCosts(definition, targetLevel);
 		bool hasSkillRequirement = _characterState.GetSkillLevel(definition.RequiredSkillId) >= definition.RequiredSkillLevel;
 		bool isUnlocked = hasSkillRequirement;
-		bool canAfford = _townState.CanAfford(level.Costs);
+		bool canAfford = _townState.CanAfford(effectiveCosts);
 		bool isQueued = HasQueuedBuildingCommand(definition.Id);
 		bool canAct = isUnlocked && !state.IsUnderConstruction && !isMaxLevel && canAfford && !isQueued;
 
 		List<TownCostViewData> costs = new();
-		foreach (BuildingCostDefinition cost in level.Costs)
+		foreach (BuildingCostDefinition cost in effectiveCosts)
 		{
 			ItemDefinition item = GameCatalog.GetItem(cost.ItemId);
 			costs.Add(new TownCostViewData
@@ -3086,7 +3296,8 @@ public partial class InfiniteWorld : Node2D
 
 		int targetLevel = upgrade ? state.CurrentLevel + 1 : 1;
 		BuildingLevelDefinition level = definition.GetLevelDefinition(targetLevel);
-		if (!CanAffordProjected(level.Costs))
+		IReadOnlyList<BuildingCostDefinition> effectiveCosts = GetEffectiveBuildingCosts(definition, targetLevel);
+		if (!CanAffordProjected(effectiveCosts))
 		{
 			UpdateStatus($"{definition.DisplayName} needs more materials before it can start.");
 			return;
@@ -3126,19 +3337,19 @@ public partial class InfiniteWorld : Node2D
 			return;
 		}
 
-		StringBuilder builder = new();
-		builder.AppendLine($"Position: {_player.CurrentDisplayCell.X}, {_player.CurrentDisplayCell.Y}");
-		builder.AppendLine($"Bag: {_characterState.GetBagCount()}/{_characterState.BagCapacity}");
-		builder.Append("Items: ");
+		string activeDuty = _activeGatherCommand is null ? "Idle" : _activeGatherCommand.Description;
+		string summaryText = $"Town square  |  Food {_townState.GetStoredCount(FoodItemId)}  |  {activeDuty}";
+		StringBuilder itemBuilder = new();
+		itemBuilder.Append("Carry:");
 		for (int index = 0; index < GameCatalog.Items.Count; index++)
 		{
 			ItemDefinition item = GameCatalog.Items[index];
 			if (index > 0)
 			{
-				builder.Append("  ");
+				itemBuilder.Append("  ");
 			}
 
-			builder.Append($"{item.DisplayName} {_characterState.GetBagCount(item.Id)}");
+			itemBuilder.Append($" {item.DisplayName} {_characterState.GetBagCount(item.Id)}");
 		}
 
 		List<CharacterSkillViewData> skills = new();
@@ -3155,14 +3366,197 @@ public partial class InfiniteWorld : Node2D
 			});
 		}
 
-		string activeDuty = _activeGatherCommand is null ? "Idle" : _activeGatherCommand.Description;
+		int housingCapacity = GetHousingCapacity();
+		int villagerCount = _townState.VillagerCount;
+		int recruitFoodCost = GetNextRecruitFoodCost();
+		bool hasHousingSpace = villagerCount < housingCapacity;
+		bool hasFood = _townState.GetStoredCount(FoodItemId) >= recruitFoodCost;
+		List<VillagerRowViewData> villagers = new()
+		{
+			BuildStarterVillagerRow(),
+		};
+		foreach (VillagerState villager in _townState.Villagers)
+		{
+			villagers.Add(new VillagerRowViewData
+			{
+				Id = villager.Id,
+				Name = villager.Name,
+				Role = villager.Role,
+				CurrentTask = villager.CurrentTask,
+				LoadText = villager.LoadText,
+				StatusText = villager.Status,
+				Summary = villager.Summary,
+			});
+		}
+
 		_peopleView.SetData(new PeopleViewData
 		{
-			Title = "Wayfarer",
-			Summary = builder.ToString().TrimEnd(),
-			Footer = $"Current duty: {activeDuty}. Future recruits and assignments will appear here.",
+			Title = "Villagers",
+			Summary = summaryText,
+			VillagerSummary = housingCapacity <= 0
+				? $"{GetTotalVillagerCount()} active  |  0/0 housed"
+				: $"{GetTotalVillagerCount()} active  |  {villagerCount}/{housingCapacity} housed",
+			RecruitCostText = $"Next recruit: {recruitFoodCost} food",
+			RecruitHintText = BuildRecruitHintText(villagerCount, housingCapacity, recruitFoodCost, hasHousingSpace, hasFood),
+			RecruitButtonText = BuildRecruitButtonText(hasHousingSpace, hasFood),
+			CanRecruit = hasHousingSpace && hasFood,
+			Footer = $"{itemBuilder}.",
 			Skills = skills,
+			Villagers = villagers,
 		});
+	}
+
+	private VillagerRowViewData BuildStarterVillagerRow()
+	{
+		string currentTask = _activeGatherCommand?.Description ?? "Watch the crossroads";
+		bool isIdle = _activeGatherCommand is null && _workerPhase == WorkerPhase.Idle;
+		string status = isIdle
+			? "Idle"
+			: _player?.IsMoving == true
+				? "Moving"
+				: "Assigned";
+		string role = _activeGatherCommand?.Kind switch
+		{
+			WorkKind.BuildingConstruction => "Builder",
+			WorkKind.DeliverExploreMaterials => "Hauler",
+			WorkKind.Explore => "Scout",
+			WorkKind.TownUpgrade => "Steward",
+			_ => "Wayfarer",
+		};
+		string summary = isIdle
+			? "Keeping watch in town and ready for the next order."
+			: $"Leading the current run: {currentTask}.";
+
+		return new VillagerRowViewData
+		{
+			Id = StarterVillagerId,
+			Name = StarterVillagerName,
+			Role = role,
+			CurrentTask = currentTask,
+			LoadText = $"{_characterState.GetBagCount()}/{_characterState.BagCapacity}",
+			StatusText = status,
+			Summary = summary,
+		};
+	}
+
+	private void OnVillagerBulkActionRequested(string actionId, IReadOnlyList<string> villagerIds)
+	{
+		if (villagerIds.Count == 0)
+		{
+			return;
+		}
+
+		int updatedVillagerCount = 0;
+
+		string statusText = actionId switch
+		{
+			"chop" => "Assigned selected villagers to chop wood.",
+			"mine" => "Assigned selected villagers to mine stone and ore.",
+			"gather" => "Assigned selected villagers to gather supplies.",
+			"build" => "Assigned selected villagers to construction support.",
+			"prioritize" => "Marked selected villagers as priority workers.",
+			"clear" => "Unassigned selected villagers.",
+			_ => "Updated the selected villagers.",
+		};
+
+		foreach (string villagerId in villagerIds)
+		{
+			VillagerState? villager = _townState.GetVillager(villagerId);
+			if (villager is null)
+			{
+				continue;
+			}
+
+			updatedVillagerCount++;
+
+			switch (actionId)
+			{
+				case "chop":
+					villager.Role = "Woodcutter";
+					villager.Duty = "Assigned";
+					villager.CurrentTask = "Chop wood";
+					villager.LoadText = "0/10";
+					villager.Status = "Assigned";
+					villager.Summary = "Working the forest edge for timber and kindling.";
+					break;
+				case "mine":
+					villager.Role = "Miner";
+					villager.Duty = "Assigned";
+					villager.CurrentTask = "Mine stone";
+					villager.LoadText = "0/10";
+					villager.Status = "Assigned";
+					villager.Summary = "Breaking stone and ore at the current dig site.";
+					break;
+				case "gather":
+					villager.Role = "Forager";
+					villager.Duty = "Assigned";
+					villager.CurrentTask = "Gather supplies";
+					villager.LoadText = "2/10";
+					villager.Status = "Assigned";
+					villager.Summary = "Sweeping nearby routes for berries and loose materials.";
+					break;
+				case "build":
+					villager.Role = "Builder";
+					villager.Duty = "Assigned";
+					villager.CurrentTask = "Build structures";
+					villager.LoadText = "4/10";
+					villager.Status = "Busy";
+					villager.Summary = "Hauling materials and reinforcing active worksites.";
+					break;
+				case "prioritize":
+					villager.Duty = "Priority";
+					villager.Status = "Priority";
+					villager.Summary = $"Priority order active: {villager.CurrentTask}.";
+					break;
+				case "clear":
+					villager.Role = "Laborer";
+					villager.Duty = "Idle";
+					villager.CurrentTask = "No order";
+					villager.LoadText = "0/10";
+					villager.Status = "Idle";
+					villager.Summary = "Waiting in town.";
+					break;
+			}
+		}
+
+		if (updatedVillagerCount == 0)
+		{
+			UpdateStatus("The wayfarer follows direct map orders.");
+			return;
+		}
+
+		UpdateCharacterPanel();
+		UpdateOverviewPanel();
+		UpdateTopResourceBar();
+		UpdateStatus(statusText);
+	}
+
+	private void OnRecruitRequested()
+	{
+		int housingCapacity = GetHousingCapacity();
+		if (_townState.VillagerCount >= housingCapacity)
+		{
+			UpdateStatus(housingCapacity <= 0
+				? "Build a house before recruiting villagers."
+				: "Housing is full. Upgrade the house before recruiting again.");
+			return;
+		}
+
+		int recruitFoodCost = GetNextRecruitFoodCost();
+		if (!_townState.TryConsumeStored(FoodItemId, recruitFoodCost))
+		{
+			int missingFood = System.Math.Max(0, recruitFoodCost - _townState.GetStoredCount(FoodItemId));
+			UpdateStatus($"Recruitment needs {missingFood} more food.");
+			return;
+		}
+
+		VillagerState villager = CreateVillagerState(_townState.VillagerCount);
+		_townState.RecruitVillager(villager);
+		UpdateTownPanel();
+		UpdateOverviewPanel();
+		UpdateTopResourceBar();
+		UpdateCharacterPanel();
+		UpdateStatus($"{villager.Name} joined the town. Villagers {_townState.VillagerCount}/{housingCapacity} housed.");
 	}
 
 	private void SellSelectedResources()
@@ -3444,6 +3838,35 @@ public partial class InfiniteWorld : Node2D
 		int exploringLevel = _characterState.GetSkillLevel(GameCatalog.Exploring.Id);
 		double speedMultiplier = System.Math.Pow(Rules.ExploringSpeedMultiplierPerLevel, exploringLevel - 1);
 		return Rules.ExploreDurationSeconds / speedMultiplier;
+	}
+
+	private void UpdateCameraFraming()
+	{
+		if (_camera is null || _gameHud?.MapPanel is null)
+		{
+			return;
+		}
+
+		Rect2 mapRect = _gameHud.MapPanel.GetGlobalRect();
+		if (mapRect.Size.X <= 0.0f || mapRect.Size.Y <= 0.0f)
+		{
+			return;
+		}
+
+		float topInset = 0.0f;
+		if (_gameHud.MapPanel.MapToolbar is { } toolbar)
+		{
+			Rect2 toolbarRect = toolbar.GetGlobalRect();
+			topInset = Mathf.Max(0.0f, toolbarRect.End.Y - mapRect.Position.Y) + 12.0f;
+		}
+
+		float playableHeight = Mathf.Max(96.0f, mapRect.Size.Y - topInset);
+		Vector2 desiredScreenPoint = new(
+			mapRect.Position.X + (mapRect.Size.X * 0.5f),
+			mapRect.Position.Y + topInset + (playableHeight * 0.5f));
+		Vector2 viewportCenter = GetViewportRect().Size * 0.5f;
+
+		_camera.Offset = viewportCenter - desiredScreenPoint;
 	}
 
 	private Rect2 GetVisibleWorldRect()

@@ -13,9 +13,15 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+size_flags_vertical = 3
 theme_override_constants/separation = 10
 
-[node name="SelectedResourcePanel" parent="RootColumn" instance=ExtResource("2_selection")]
+[node name="SelectedScroll" type="ScrollContainer" parent="RootColumn"]
+visible = false
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="SelectedResourcePanel" parent="RootColumn/SelectedScroll" instance=ExtResource("2_selection")]
 size_flags_horizontal = 3
 
 [node name="EmptyStatePanel" type="PanelContainer" parent="RootColumn"]

@@ -1,11 +1,16 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://Scripts/UI/Views/PeopleView.cs" id="1_script"]
-[ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://UI/People/VillagerFilterBar.tscn" id="2_filterbar"]
+[ext_resource type="PackedScene" path="res://UI/People/VillagerRow.tscn" id="3_row"]
+[ext_resource type="PackedScene" path="res://UI/People/SelectedGroupInspector.tscn" id="4_inspector"]
+[ext_resource type="Theme" path="res://UI/Theme/FantasyTheme.tres" id="5_theme"]
 
 [node name="PeopleView" type="PanelContainer"]
-theme = ExtResource("2_theme")
+theme = ExtResource("5_theme")
 script = ExtResource("1_script")
+VillagerRowScene = ExtResource("3_row")
+SelectedGroupInspectorScene = ExtResource("4_inspector")
 
 [node name="OuterMargin" type="MarginContainer" parent="."]
 layout_mode = 2
@@ -16,65 +21,261 @@ theme_override_constants/margin_bottom = 10
 
 [node name="RootColumn" type="VBoxContainer" parent="OuterMargin"]
 layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="HeaderRow" type="HBoxContainer" parent="OuterMargin/RootColumn"]
-theme_override_constants/separation = 8
-
-[node name="TitleLabel" type="Label" parent="OuterMargin/RootColumn/HeaderRow"]
-text = "Wayfarer"
-size_flags_horizontal = 3
-
-[node name="SummaryPanel" type="PanelContainer" parent="OuterMargin/RootColumn"]
-
-[node name="SummaryMargin" type="MarginContainer" parent="OuterMargin/RootColumn/SummaryPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 6
-theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 6
-
-[node name="SummaryLabel" type="Label" parent="OuterMargin/RootColumn/SummaryPanel/SummaryMargin"]
-layout_mode = 2
-autowrap_mode = 2
-text = "Position, bag, and current duty will appear here."
-
-[node name="SkillsPanel" type="PanelContainer" parent="OuterMargin/RootColumn"]
 size_flags_vertical = 3
+theme_override_constants/separation = 8
 
-[node name="SkillsMargin" type="MarginContainer" parent="OuterMargin/RootColumn/SkillsPanel"]
+[node name="HeaderPanel" type="PanelContainer" parent="OuterMargin/RootColumn"]
+
+[node name="HeaderMargin" type="MarginContainer" parent="OuterMargin/RootColumn/HeaderPanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 8
 theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
-[node name="SkillsColumn" type="VBoxContainer" parent="OuterMargin/RootColumn/SkillsPanel/SkillsMargin"]
+[node name="HeaderColumn" type="VBoxContainer" parent="OuterMargin/RootColumn/HeaderPanel/HeaderMargin"]
 layout_mode = 2
-size_flags_vertical = 3
 theme_override_constants/separation = 6
 
-[node name="SkillsHeading" type="Label" parent="OuterMargin/RootColumn/SkillsPanel/SkillsMargin/SkillsColumn"]
-text = "Skills"
+[node name="HeaderRow" type="HBoxContainer" parent="OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderColumn"]
+theme_override_constants/separation = 8
 
-[node name="SkillsScroll" type="ScrollContainer" parent="OuterMargin/RootColumn/SkillsPanel/SkillsMargin/SkillsColumn"]
-custom_minimum_size = Vector2(0, 240)
+[node name="TitleLabel" type="Label" parent="OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderColumn/HeaderRow"]
+size_flags_horizontal = 3
+text = "Villagers"
+
+[node name="RecruitButton" type="Button" parent="OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderColumn/HeaderRow"]
+custom_minimum_size = Vector2(144, 34)
+text = "Recruit"
+
+[node name="SummaryLabel" type="Label" parent="OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderColumn"]
+autowrap_mode = 2
+text = "Town square"
+
+[node name="MetaRow" type="HBoxContainer" parent="OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderColumn"]
+theme_override_constants/separation = 8
+
+[node name="VillagerSummaryLabel" type="Label" parent="OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderColumn/MetaRow"]
+size_flags_horizontal = 3
+text = "Villagers 0/0 housed"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="RecruitCostLabel" type="Label" parent="OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderColumn/MetaRow"]
+text = "Next recruit: 100 food"
+
+[node name="RecruitHintLabel" type="Label" parent="OuterMargin/RootColumn/HeaderPanel/HeaderMargin/HeaderColumn"]
+autowrap_mode = 2
+text = "Build housing to recruit."
+
+[node name="TabsRow" type="HBoxContainer" parent="OuterMargin/RootColumn"]
+theme_override_constants/separation = 8
+
+[node name="RosterTabButton" type="Button" parent="OuterMargin/RootColumn/TabsRow"]
+size_flags_horizontal = 3
+text = "Roster"
+
+[node name="TasksTabButton" type="Button" parent="OuterMargin/RootColumn/TabsRow"]
+size_flags_horizontal = 3
+text = "Tasks"
+
+[node name="GroupsTabButton" type="Button" parent="OuterMargin/RootColumn/TabsRow"]
+size_flags_horizontal = 3
+text = "Groups"
+
+[node name="SearchRow" type="HBoxContainer" parent="OuterMargin/RootColumn"]
+theme_override_constants/separation = 8
+
+[node name="SearchField" type="LineEdit" parent="OuterMargin/RootColumn/SearchRow"]
+size_flags_horizontal = 3
+placeholder_text = "Search villagers"
+
+[node name="SelectAllButton" type="Button" parent="OuterMargin/RootColumn/SearchRow"]
+custom_minimum_size = Vector2(48, 30)
+text = "All"
+
+[node name="ClearSelectionButton" type="Button" parent="OuterMargin/RootColumn/SearchRow"]
+custom_minimum_size = Vector2(56, 30)
+text = "None"
+
+[node name="FilterBar" parent="OuterMargin/RootColumn" instance=ExtResource("2_filterbar")]
+custom_minimum_size = Vector2(0, 34)
+
+[node name="ContentFrame" type="PanelContainer" parent="OuterMargin/RootColumn"]
 size_flags_vertical = 3
+
+[node name="ContentHost" type="Control" parent="OuterMargin/RootColumn/ContentFrame"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+clip_contents = true
+
+[node name="RosterTab" type="Control" parent="OuterMargin/RootColumn/ContentFrame/ContentHost"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="HeaderRow" type="HBoxContainer" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/RosterTab"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 24.0
+theme_override_constants/separation = 8
+
+[node name="SelectHeader" type="Label" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/RosterTab/HeaderRow"]
+custom_minimum_size = Vector2(28, 0)
+text = "Sel"
+
+[node name="NameHeader" type="Label" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/RosterTab/HeaderRow"]
+custom_minimum_size = Vector2(76, 0)
+size_flags_horizontal = 3
+text = "Name"
+
+[node name="RoleHeader" type="Label" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/RosterTab/HeaderRow"]
+custom_minimum_size = Vector2(64, 0)
+text = "Role"
+
+[node name="TaskHeader" type="Label" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/RosterTab/HeaderRow"]
+custom_minimum_size = Vector2(74, 0)
+size_flags_horizontal = 3
+text = "Task"
+
+[node name="LoadHeader" type="Label" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/RosterTab/HeaderRow"]
+custom_minimum_size = Vector2(46, 0)
+horizontal_alignment = 1
+text = "Load"
+
+[node name="StatusHeader" type="Label" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/RosterTab/HeaderRow"]
+custom_minimum_size = Vector2(52, 0)
+horizontal_alignment = 2
+text = "St"
+
+[node name="RosterScroll" type="ScrollContainer" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/RosterTab"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 28.0
 horizontal_scroll_mode = 0
 
-[node name="SkillsList" type="VBoxContainer" parent="OuterMargin/RootColumn/SkillsPanel/SkillsMargin/SkillsColumn/SkillsScroll"]
+[node name="RosterList" type="VBoxContainer" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/RosterTab/RosterScroll"]
+size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
+[node name="EmptyStatePanel" type="PanelContainer" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/RosterTab"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 28.0
+
+[node name="EmptyStateMargin" type="MarginContainer" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/RosterTab/EmptyStatePanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="EmptyStateColumn" type="VBoxContainer" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/RosterTab/EmptyStatePanel/EmptyStateMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="EmptyStateTitle" type="Label" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/RosterTab/EmptyStatePanel/EmptyStateMargin/EmptyStateColumn"]
+text = "No villagers yet."
+
+[node name="EmptyStateBody" type="Label" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/RosterTab/EmptyStatePanel/EmptyStateMargin/EmptyStateColumn"]
+autowrap_mode = 2
+text = "Build housing to recruit."
+
+[node name="TasksTab" type="Control" parent="OuterMargin/RootColumn/ContentFrame/ContentHost"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="TasksScroll" type="ScrollContainer" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/TasksTab"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+horizontal_scroll_mode = 0
+
+[node name="TasksColumn" type="VBoxContainer" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/TasksTab/TasksScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="TaskSummaryHeader" type="Label" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/TasksTab/TasksScroll/TasksColumn"]
+text = "Task Summary"
+
+[node name="TaskSummaryList" type="VBoxContainer" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/TasksTab/TasksScroll/TasksColumn"]
+theme_override_constants/separation = 6
+
+[node name="SkillsPanel" type="PanelContainer" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/TasksTab/TasksScroll/TasksColumn"]
+
+[node name="SkillsMargin" type="MarginContainer" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/TasksTab/TasksScroll/TasksColumn/SkillsPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="SkillsColumn" type="VBoxContainer" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/TasksTab/TasksScroll/TasksColumn/SkillsPanel/SkillsMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SkillsHeader" type="Label" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/TasksTab/TasksScroll/TasksColumn/SkillsPanel/SkillsMargin/SkillsColumn"]
+text = "Wayfarer Skills"
+
+[node name="SkillsList" type="VBoxContainer" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/TasksTab/TasksScroll/TasksColumn/SkillsPanel/SkillsMargin/SkillsColumn"]
+theme_override_constants/separation = 6
+
+[node name="GroupsTab" type="Control" parent="OuterMargin/RootColumn/ContentFrame/ContentHost"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="GroupsScroll" type="ScrollContainer" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/GroupsTab"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+horizontal_scroll_mode = 0
+
+[node name="GroupsColumn" type="VBoxContainer" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/GroupsTab/GroupsScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="GroupsHeader" type="Label" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/GroupsTab/GroupsScroll/GroupsColumn"]
+text = "Group Summary"
+
+[node name="GroupsList" type="VBoxContainer" parent="OuterMargin/RootColumn/ContentFrame/ContentHost/GroupsTab/GroupsScroll/GroupsColumn"]
+theme_override_constants/separation = 6
+
+[node name="InspectorHost" type="Control" parent="OuterMargin/RootColumn"]
+visible = false
+
 [node name="FooterPanel" type="PanelContainer" parent="OuterMargin/RootColumn"]
+visible = false
 
 [node name="FooterMargin" type="MarginContainer" parent="OuterMargin/RootColumn/FooterPanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 6
+theme_override_constants/margin_top = 4
 theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 6
+theme_override_constants/margin_bottom = 4
 
 [node name="FooterLabel" type="Label" parent="OuterMargin/RootColumn/FooterPanel/FooterMargin"]
 layout_mode = 2
 autowrap_mode = 2
-text = "Future recruits, jobs, and assignments will appear here."
+text = "Carry: none"
